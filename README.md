@@ -313,4 +313,4 @@ This project is intended to demonstrate:
 
 **Matthew J. Nicol**
 GitHub: [Mjn92 GitHub](https://github.com/Mjn92?utm_source=chatgpt.com)
-LinkedIn: [Matthew Nicol LinkedIn](https://www.linkedin.com/in/matthewnicol/?utm_source=chatgpt.com)
+LinkedIn: [Matthew Nicol LinkedIn](https://www.linkedin.com/in/matthew-nicol-56b089b0/)
