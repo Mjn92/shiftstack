@@ -6,6 +6,35 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 
 ---
 
+# Current Project Status
+
+## Week 1 Completed
+
+* Project architecture planned
+* GitHub repository initialized
+* React Native mobile app initialized
+* React web dashboard initialized
+* Backend structure planned
+* Docker environment configured
+* PostgreSQL and RabbitMQ planned
+* Database schema drafted
+* API routes planned
+
+## Week 2 Completed
+
+* Backend Express server created
+* PostgreSQL database connected
+* Docker services configured and running
+* Initial database tables created
+* API route structure created
+* Health check endpoint created
+* Employee API endpoint created
+* PostgreSQL schema initialized
+* Environment variables configured
+* Postman API testing setup started
+
+---
+
 # Features
 
 ## Employee Features
@@ -82,21 +111,6 @@ PostgreSQL Database
 
 ---
 
-# Planned Features
-
-* JWT Authentication
-* Secure password hashing
-* Audit logs
-* CSV exports
-* Manager approval workflow
-* GPS clock-in verification
-* QR code clock-in
-* Overtime calculations
-* Shift scheduling
-* Mobile notifications
-
----
-
 # Project Structure
 
 ```text
@@ -104,6 +118,18 @@ shiftstack/
 ├── mobile-app/
 ├── web-dashboard/
 ├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── workers/
+│   │   ├── utils/
+│   │   ├── db/
+│   │   ├── models/
+│   │   └── server.js
+│   └── .env
 ├── docs/
 ├── docker-compose.yml
 └── README.md
@@ -228,13 +254,83 @@ JWT_SECRET=supersecretkey
 
 # Database Tables
 
-## Planned Tables
+## Current Tables
 
-* employees
-* time_entries
-* sessions
-* audit_logs
-* timesheet_approvals
+### employees
+
+Stores employee account information.
+
+Fields:
+
+* id
+* first_name
+* last_name
+* email
+* password_hash
+* role
+* active
+* created_at
+
+### time_entries
+
+Stores employee clock-in and clock-out records.
+
+Fields:
+
+* id
+* employee_id
+* clock_in
+* clock_out
+* total_minutes
+* status
+* note
+* created_at
+
+### sessions
+
+Stores user authentication sessions.
+
+Fields:
+
+* id
+* employee_id
+* token
+* expires_at
+* created_at
+
+### audit_logs
+
+Stores important system actions and events.
+
+Fields:
+
+* id
+* employee_id
+* action
+* details
+* created_at
+
+---
+
+# API Routes
+
+## Current Routes
+
+### Health Check
+
+```http
+GET /api/health
+```
+
+Returns API status.
+
+### Admin Routes
+
+```http
+GET /api/admin/employees
+```
+
+Returns employee list.
 
 ---
 
@@ -252,6 +348,15 @@ JWT_SECRET=supersecretkey
 ---
 
 # Security Features
+
+## Current
+
+* Environment variable configuration
+* Backend/server separation
+* PostgreSQL database isolation
+* Structured API architecture
+
+## Planned
 
 * Password hashing with bcrypt
 * JWT authentication
@@ -283,6 +388,30 @@ JWT_SECRET=supersecretkey
 
 ---
 
+# Week 2 Backend Progress
+
+## Completed Backend Features
+
+* Express server configured
+* PostgreSQL database connection established
+* Dockerized PostgreSQL instance running
+* RabbitMQ service configured
+* pgAdmin service configured
+* API route system created
+* Health endpoint operational
+* Employee API endpoint operational
+* SQL schema initialized
+* Test employee insertion completed
+
+## Backend Endpoints Working
+
+```http
+GET /api/health
+GET /api/admin/employees
+```
+
+---
+
 # Goals of This Project
 
 This project is intended to demonstrate:
@@ -295,6 +424,21 @@ This project is intended to demonstrate:
 * Backend API development
 * Dockerized environments
 * Real-world scalable architecture
+
+---
+
+# Planned Features
+
+* JWT Authentication
+* Secure password hashing
+* Audit logs
+* CSV exports
+* Manager approval workflow
+* GPS clock-in verification
+* QR code clock-in
+* Overtime calculations
+* Shift scheduling
+* Mobile notifications
 
 ---
 
@@ -312,5 +456,7 @@ This project is intended to demonstrate:
 # Author
 
 **Matthew J. Nicol**
-GitHub: [Mjn92 GitHub](https://github.com/Mjn92?utm_source=chatgpt.com)
-LinkedIn: [Matthew Nicol LinkedIn](https://www.linkedin.com/in/matthew-nicol-56b089b0/)
+
+GitHub: https://github.com/Mjn92
+
+LinkedIn: https://www.linkedin.com/in/matthew-nicol-56b089b0/
