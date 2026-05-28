@@ -1,3 +1,6 @@
+require("dotenv").config();
+require("./config/db");
+
 const express = require("express");
 const cors = require("cors");
 
@@ -9,6 +12,12 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("ShiftStack Backend Running");
 });
+
+const healthRoutes = require("./routes/healthRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+
+app.use("/api/health", healthRoutes);
+app.use("/api/admin", adminRoutes);
 
 const PORT = 5000;
 
