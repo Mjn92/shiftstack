@@ -8,30 +8,30 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 
 # Current Project Status
 
-## Week 1 Completed
+## Day 1 Completed
 
-* Project architecture planned
-* GitHub repository initialized
-* React Native mobile app initialized
-* React web dashboard initialized
-* Backend structure planned
-* Docker environment configured
-* PostgreSQL and RabbitMQ planned
-* Database schema drafted
-* API routes planned
+- Project architecture planned
+- GitHub repository initialized
+- React Native mobile app initialized
+- React web dashboard initialized
+- Backend structure planned
+- Docker environment configured
+- PostgreSQL and RabbitMQ planned
+- Database schema drafted
+- API routes planned
 
-## Week 2 Completed
+## Day 2 Completed
 
-* Backend Express server created
-* PostgreSQL database connected
-* Docker services configured and running
-* Initial database tables created
-* API route structure created
-* Health check endpoint created
-* Employee API endpoint created
-* PostgreSQL schema initialized
-* Environment variables configured
-* Postman API testing setup started
+- Backend Express server created
+- PostgreSQL database connected
+- Docker services configured and running
+- Initial database tables created
+- API route structure created
+- Health check endpoint created
+- Employee API endpoint created
+- PostgreSQL schema initialized
+- Environment variables configured
+- Postman API testing setup started
 
 ---
 
@@ -39,26 +39,26 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 
 ## Employee Features
 
-* Secure login authentication
-* Clock in / clock out
-* View personal time history
-* View current shift status
-* Mobile-friendly experience
+- Secure login authentication
+- Clock in / clock out
+- View personal time history
+- View current shift status
+- Mobile-friendly experience
 
 ## Manager Features
 
-* View employee time entries
-* View weekly reports
-* Filter records by employee/date
-* Approve employee timesheets
+- View employee time entries
+- View weekly reports
+- Filter records by employee/date
+- Approve employee timesheets
 
 ## Admin Features
 
-* Manage employees
-* Role-based access control
-* Audit logging
-* View system activity
-* Manage reports
+- Manage employees
+- Role-based access control
+- Audit logging
+- View system activity
+- Manage reports
 
 ---
 
@@ -66,24 +66,24 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 
 ## Frontend
 
-* React Native + Expo
-* React / Next.js
-* Tailwind CSS
+- React Native + Expo
+- React / Next.js
+- Tailwind CSS
 
 ## Backend
 
-* Node.js
-* Express.js
-* RabbitMQ
-* PostgreSQL
+- Node.js
+- Express.js
+- RabbitMQ
+- PostgreSQL
 
 ## DevOps / Tools
 
-* Docker
-* Docker Compose
-* GitHub
-* Postman
-* pgAdmin
+- Docker
+- Docker Compose
+- GitHub
+- Postman
+- pgAdmin
 
 ---
 
@@ -183,9 +183,9 @@ docker compose up -d
 
 Services included:
 
-* PostgreSQL
-* RabbitMQ
-* pgAdmin
+- PostgreSQL
+- RabbitMQ
+- pgAdmin
 
 ---
 
@@ -262,14 +262,14 @@ Stores employee account information.
 
 Fields:
 
-* id
-* first_name
-* last_name
-* email
-* password_hash
-* role
-* active
-* created_at
+- id
+- first_name
+- last_name
+- email
+- password_hash
+- role
+- active
+- created_at
 
 ### time_entries
 
@@ -277,14 +277,14 @@ Stores employee clock-in and clock-out records.
 
 Fields:
 
-* id
-* employee_id
-* clock_in
-* clock_out
-* total_minutes
-* status
-* note
-* created_at
+- id
+- employee_id
+- clock_in
+- clock_out
+- total_minutes
+- status
+- note
+- created_at
 
 ### sessions
 
@@ -292,11 +292,11 @@ Stores user authentication sessions.
 
 Fields:
 
-* id
-* employee_id
-* token
-* expires_at
-* created_at
+- id
+- employee_id
+- token
+- expires_at
+- created_at
 
 ### audit_logs
 
@@ -304,11 +304,11 @@ Stores important system actions and events.
 
 Fields:
 
-* id
-* employee_id
-* action
-* details
-* created_at
+- id
+- employee_id
+- action
+- details
+- created_at
 
 ---
 
@@ -338,12 +338,12 @@ Returns employee list.
 
 ## Planned Queues
 
-* auth_queue
-* clock_in_queue
-* clock_out_queue
-* timesheet_queue
-* admin_report_queue
-* audit_log_queue
+- auth_queue
+- clock_in_queue
+- clock_out_queue
+- timesheet_queue
+- admin_report_queue
+- audit_log_queue
 
 ---
 
@@ -351,20 +351,20 @@ Returns employee list.
 
 ## Current
 
-* Environment variable configuration
-* Backend/server separation
-* PostgreSQL database isolation
-* Structured API architecture
+- Environment variable configuration
+- Backend/server separation
+- PostgreSQL database isolation
+- Structured API architecture
 
 ## Planned
 
-* Password hashing with bcrypt
-* JWT authentication
-* Role-based access control
-* Secure API validation
-* Audit logging
-* Session expiration
-* Protected routes
+- Password hashing with bcrypt
+- JWT authentication
+- Role-based access control
+- Secure API validation
+- Audit logging
+- Session expiration
+- Protected routes
 
 ---
 
@@ -372,19 +372,19 @@ Returns employee list.
 
 ## Mobile App
 
-* Login Screen
-* Dashboard
-* Clock In / Clock Out
-* Time History
-* Profile
+- Login Screen
+- Dashboard
+- Clock In / Clock Out
+- Time History
+- Profile
 
 ## Web Dashboard
 
-* Admin Dashboard
-* Employees Page
-* Reports Page
-* Audit Logs
-* Settings
+- Admin Dashboard
+- Employees Page
+- Reports Page
+- Audit Logs
+- Settings
 
 ---
 
@@ -392,16 +392,16 @@ Returns employee list.
 
 ## Completed Backend Features
 
-* Express server configured
-* PostgreSQL database connection established
-* Dockerized PostgreSQL instance running
-* RabbitMQ service configured
-* pgAdmin service configured
-* API route system created
-* Health endpoint operational
-* Employee API endpoint operational
-* SQL schema initialized
-* Test employee insertion completed
+- Express server configured
+- PostgreSQL database connection established
+- Dockerized PostgreSQL instance running
+- RabbitMQ service configured
+- pgAdmin service configured
+- API route system created
+- Health endpoint operational
+- Employee API endpoint operational
+- SQL schema initialized
+- Test employee insertion completed
 
 ## Backend Endpoints Working
 
@@ -416,40 +416,40 @@ GET /api/admin/employees
 
 This project is intended to demonstrate:
 
-* Full-stack development
-* Mobile application development
-* Secure authentication systems
-* Message queue architecture
-* SQL database design
-* Backend API development
-* Dockerized environments
-* Real-world scalable architecture
+- Full-stack development
+- Mobile application development
+- Secure authentication systems
+- Message queue architecture
+- SQL database design
+- Backend API development
+- Dockerized environments
+- Real-world scalable architecture
 
 ---
 
 # Planned Features
 
-* JWT Authentication
-* Secure password hashing
-* Audit logs
-* CSV exports
-* Manager approval workflow
-* GPS clock-in verification
-* QR code clock-in
-* Overtime calculations
-* Shift scheduling
-* Mobile notifications
+- JWT Authentication
+- Secure password hashing
+- Audit logs
+- CSV exports
+- Manager approval workflow
+- GPS clock-in verification
+- QR code clock-in
+- Overtime calculations
+- Shift scheduling
+- Mobile notifications
 
 ---
 
 # Future Improvements
 
-* Payroll integration
-* Facial recognition clock-in
-* Push notifications
-* Multi-company support
-* Real-time dashboard updates
-* Analytics and charts
+- Payroll integration
+- Facial recognition clock-in
+- Push notifications
+- Multi-company support
+- Real-time dashboard updates
+- Analytics and charts
 
 ---
 
