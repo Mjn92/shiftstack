@@ -12,7 +12,7 @@ Use `- [x]` for completed tasks and `- [ ]` for unfinished tasks.
 
 - [x] GitHub repo created
 - [x] README started
-- [x] wireframes
+- [x] Wireframes
 - [x] App architecture diagram
 - [x] Database schema draft
 - [x] Final tech stack chosen
