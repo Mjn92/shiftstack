@@ -2,126 +2,139 @@
 
 A full-stack employee clock-in and clock-out system built with React Native, React, RabbitMQ, PostgreSQL, and Node.js.
 
-ShiftStack is designed as a portfolio project to demonstrate modern full-stack application development, secure authentication, message queue architecture, database design, and mobile/web application integration.
+ShiftStack is designed as a portfolio project to demonstrate:
+
+- Full-stack application development
+- Secure authentication and authorization
+- Employee time tracking
+- Message queue architecture
+- PostgreSQL database design
+- Dockerized development environments
+- Mobile and web application integration
 
 ---
 
-# Current Project Status
+# Project Status
 
-## Day 1 - Project Planning & Setup
+## Day 1 — Project Setup
 
-- Project architecture planned
-- GitHub repository initialized
-- React Native mobile app initialized
-- React web dashboard initialized
-- Backend structure planned
-- Docker environment configured
-- PostgreSQL and RabbitMQ planned
-- Database schema drafted
-- API routes planned
+- [x] Project architecture planned
+- [x] GitHub repository initialized
+- [x] React Native mobile app initialized
+- [x] React web dashboard initialized
+- [x] Backend structure planned
+- [x] Docker environment configured
+- [x] PostgreSQL planned
+- [x] RabbitMQ planned
+- [x] Database schema drafted
+- [x] API routes planned
 
-## Day 2 - Backend Foundation
+---
 
-- Backend Express server created
-- PostgreSQL database connected
-- Docker services configured and running
-- Initial database tables created
-- API route structure created
-- Health check endpoint created
-- Employee API endpoint created
-- PostgreSQL schema initialized
-- Environment variables configured
-- Postman API testing setup started
+## Day 2 — Backend Foundation
 
-## Day 3 - Authentication System
+- [x] Express backend server created
+- [x] PostgreSQL database connected
+- [x] Docker services configured and running
+- [x] Initial database tables created
+- [x] API route structure created
+- [x] Health check endpoint created
+- [x] Employee API endpoint created
+- [x] PostgreSQL schema initialized
+- [x] Environment variables configured
+- [x] Postman testing setup completed
 
-- Employee registration endpoint created
-- Employee login endpoint created
-- Password hashing implemented with bcrypt
-- JWT authentication implemented
-- Authentication middleware created
-- Protected route system created
-- Role-based access control middleware created
-- Current user endpoint created
-- Admin routes protected
-- Token validation working
-- Authentication testing completed in Postman
+---
 
-### New API Routes
+## Day 3 — Authentication System
 
-```http
-POST /api/auth/register
-POST /api/auth/login
-GET /api/auth/me
-```
+- [x] Employee registration endpoint created
+- [x] Employee login endpoint created
+- [x] Password hashing with bcrypt implemented
+- [x] JWT authentication implemented
+- [x] Authentication middleware created
+- [x] Protected routes implemented
+- [x] Role-based access control implemented
+- [x] Current user endpoint created
+- [x] Admin routes protected
+- [x] Token validation working
+- [x] Authentication testing completed
 
-### Security Improvements
+---
 
-- Passwords are securely hashed before storage
-- JWT tokens used for authentication
-- Protected routes require valid authentication token
-- Role-based authorization implemented
-- Admin routes restricted to manager/admin roles
-- Session expiration configured through JWT
+## Day 4 — Clock In / Clock Out Logic
 
-## Day 4 - Clock In / Clock Out Logic
+- [x] Clock-in endpoint created
+- [x] Clock-out endpoint created
+- [x] Current shift status endpoint created
+- [x] Personal time history endpoint created
+- [x] Double clock-in prevention implemented
+- [x] Clock-out validation implemented
+- [x] Total worked minutes calculation added
+- [x] JWT protection added to time routes
+- [x] Employee shift tracking implemented
+- [x] Postman workflow testing completed
 
-- Clock-in endpoint created
-- Clock-out endpoint created
-- Current clock status endpoint created
-- Personal time entries endpoint created
-- Double clock-in prevention added
-- Clock-out without active shift prevention added
-- Total worked minutes calculation added
-- Time routes protected with JWT authentication
-- Employee shift status tracking implemented
-- Postman testing completed for clock-in/clock-out workflow
+---
 
-### New Time Tracking Routes
+## Upcoming Development
 
-```http
-POST /api/time/clock-in
-POST /api/time/clock-out
-GET  /api/time/status
-GET  /api/time/my-entries
-```
+### Day 5 — RabbitMQ Messaging
 
-### Time Tracking Features
+- [ ] RabbitMQ producer service
+- [ ] RabbitMQ consumer service
+- [ ] Queue-based clock-in processing
+- [ ] Queue-based clock-out processing
+- [ ] Database worker integration
 
-- Employees can clock in once per active shift
-- Employees cannot clock in twice without clocking out
-- Employees cannot clock out without an active shift
-- Total worked minutes are automatically calculated
-- Employees can view their complete shift history
-- Current shift status can be checked in real time
-- All time tracking routes require authentication
+### Day 6 — React Native Mobile App
 
-### Clock In / Clock Out Workflow
+- [ ] Login screen
+- [ ] Dashboard screen
+- [ ] Clock In / Clock Out screen
+- [ ] Current shift status
+- [ ] Time history screen
 
-```text
-Employee Login
-      |
-      v
-Clock In Request
-      |
-      v
-Create Open Time Entry
-      |
-      v
-Employee Working
-      |
-      v
-Clock Out Request
-      |
-      v
-Calculate Worked Time
-      |
-      v
-Close Time Entry
-      |
-      v
-Store Shift Record
-```
+### Day 7 — React Web Dashboard
+
+- [ ] Admin dashboard
+- [ ] Employee management page
+- [ ] Time entries page
+- [ ] Filtering and reporting
+
+### Day 8 — Security & Audit Logs
+
+- [ ] Audit logging
+- [ ] Rate limiting
+- [ ] Validation improvements
+- [ ] Error handling improvements
+
+### Day 9 — Reports
+
+- [ ] Weekly reports
+- [ ] Employee timesheets
+- [ ] CSV exports
+- [ ] Manager approvals
+
+### Day 10 — Deployment
+
+- [ ] Backend deployment
+- [ ] Web dashboard deployment
+- [ ] Database hosting
+- [ ] RabbitMQ deployment
+
+### Day 11 — Portfolio Polish
+
+- [ ] Screenshots
+- [ ] Demo video
+- [ ] Architecture diagrams
+- [ ] Resume project description
+
+### Day 12 — Advanced Features
+
+- [ ] GPS clock-in verification
+- [ ] QR code clock-in
+- [ ] Manager approval workflow
 
 ---
 
@@ -129,26 +142,50 @@ Store Shift Record
 
 ## Employee Features
 
-- Secure login authentication
-- Clock in / clock out
-- View personal time history
+- Secure login
+- Clock in
+- Clock out
+- View shift history
 - View current shift status
-- Mobile-friendly experience
+- Mobile access
 
 ## Manager Features
 
-- View employee time entries
-- View weekly reports
-- Filter records by employee/date
-- Approve employee timesheets
+- View employee records
+- Weekly reports
+- Filter time entries
+- Approve timesheets
 
 ## Admin Features
 
 - Manage employees
 - Role-based access control
-- Audit logging
 - View system activity
+- Audit logging
 - Manage reports
+
+---
+
+# Architecture
+
+```text
+React Native Mobile App
+          |
+          |
+React Web Dashboard
+          |
+          v
+Node.js / Express API
+          |
+          v
+RabbitMQ Message Broker
+          |
+          v
+Worker Services
+          |
+          v
+PostgreSQL Database
+```
 
 ---
 
@@ -156,48 +193,26 @@ Store Shift Record
 
 ## Frontend
 
-- React Native + Expo
-- React / Next.js
+- React Native
+- Expo
+- React
+- Next.js
 - Tailwind CSS
 
 ## Backend
 
 - Node.js
 - Express.js
-- RabbitMQ
 - PostgreSQL
+- RabbitMQ
 
-## DevOps / Tools
+## DevOps & Tools
 
 - Docker
 - Docker Compose
 - GitHub
 - Postman
 - pgAdmin
-
----
-
-# Architecture
-
-```text
-Mobile App / Web Dashboard
-        |
-        | HTTPS Requests
-        v
-Backend API Server
-        |
-        | Publishes Messages
-        v
-RabbitMQ Message Broker
-        |
-        | Consumes Jobs
-        v
-Worker Services
-        |
-        | SQL Queries
-        v
-PostgreSQL Database
-```
 
 ---
 
@@ -217,7 +232,6 @@ shiftstack/
 │   │   ├── workers/
 │   │   ├── utils/
 │   │   ├── db/
-│   │   ├── models/
 │   │   └── server.js
 │   └── .env
 ├── docs/
@@ -236,25 +250,23 @@ git clone https://github.com/YOUR_USERNAME/shiftstack.git
 cd shiftstack
 ```
 
----
+## Install Dependencies
 
-# Install Dependencies
-
-## Mobile App
+### Mobile App
 
 ```bash
 cd mobile-app
 npm install
 ```
 
-## Web Dashboard
+### Web Dashboard
 
 ```bash
 cd ../web-dashboard
 npm install
 ```
 
-## Backend
+### Backend
 
 ```bash
 cd ../backend
@@ -263,15 +275,15 @@ npm install
 
 ---
 
-# Start Docker Services
+# Docker Setup
 
-From project root:
+Start services:
 
 ```bash
 docker compose up -d
 ```
 
-Services included:
+Services:
 
 - PostgreSQL
 - RabbitMQ
@@ -279,7 +291,7 @@ Services included:
 
 ---
 
-# Run Applications
+# Running The Project
 
 ## Backend
 
@@ -294,8 +306,6 @@ Runs on:
 http://localhost:5000
 ```
 
----
-
 ## Web Dashboard
 
 ```bash
@@ -309,8 +319,6 @@ Runs on:
 http://localhost:3000
 ```
 
----
-
 ## Mobile App
 
 ```bash
@@ -318,13 +326,17 @@ cd mobile-app
 npm start
 ```
 
-Scan QR code with Expo Go.
+Scan the QR code using Expo Go.
 
 ---
 
 # Environment Variables
 
-Create `.env` inside backend folder:
+Create:
+
+```text
+backend/.env
+```
 
 ```env
 PORT=5000
@@ -342,15 +354,11 @@ JWT_SECRET=supersecretkey
 
 ---
 
-# Database Tables
+# Database Design
 
-## Current Tables
-
-### employees
+## employees
 
 Stores employee account information.
-
-Fields:
 
 - id
 - first_name
@@ -361,11 +369,9 @@ Fields:
 - active
 - created_at
 
-### time_entries
+## time_entries
 
-Stores employee clock-in and clock-out records.
-
-Fields:
+Stores employee shift records.
 
 - id
 - employee_id
@@ -376,11 +382,9 @@ Fields:
 - note
 - created_at
 
-### sessions
+## sessions
 
-Stores user authentication sessions.
-
-Fields:
+Stores authentication sessions.
 
 - id
 - employee_id
@@ -388,11 +392,9 @@ Fields:
 - expires_at
 - created_at
 
-### audit_logs
+## audit_logs
 
-Stores important system actions and events.
-
-Fields:
+Stores important system actions.
 
 - id
 - employee_id
@@ -402,19 +404,15 @@ Fields:
 
 ---
 
-# API Routes
+# API Documentation
 
-## Current Routes
-
-### Health Check
+## Health
 
 ```http
 GET /api/health
 ```
 
-Returns API status.
-
-### Authentication Routes
+## Authentication
 
 ```http
 POST /api/auth/register
@@ -422,15 +420,13 @@ POST /api/auth/login
 GET  /api/auth/me
 ```
 
-### Admin Routes
+## Admin
 
 ```http
 GET /api/admin/employees
 ```
 
-Returns employee list.
-
-### Clock-In/Clock-out Routes
+## Time Tracking
 
 ```http
 POST /api/time/clock-in
@@ -441,9 +437,30 @@ GET  /api/time/my-entries
 
 ---
 
-# RabbitMQ Queues
+# Security Features
 
-## Planned Queues
+## Current
+
+- Password hashing (bcrypt)
+- JWT authentication
+- Protected routes
+- Role-based authorization
+- Token validation
+- Environment variable configuration
+- PostgreSQL database isolation
+
+## Planned
+
+- Audit logging
+- Refresh tokens
+- Rate limiting
+- Input validation
+- MFA support
+- Account lockout protection
+
+---
+
+# Planned RabbitMQ Queues
 
 - auth_queue
 - clock_in_queue
@@ -454,148 +471,15 @@ GET  /api/time/my-entries
 
 ---
 
-# Security Features
+# Future Enhancements
 
-## Current
-
-- Environment variable configuration
-- Backend/server separation
-- PostgreSQL database isolation
-- Structured API architecture
-- Password hashing with bcrypt
-- JWT authentication
-- Protected routes
-- Role-based access control
-- Token validation
-
-## Planned
-
-- Audit logging
-- Session expiration table integration
-- Refresh tokens
-- Rate limiting
-- Secure API validation
-- Multi-factor authentication
-- Account lockout protection
-
----
-
-# Screens
-
-## Mobile App
-
-- Login Screen
-- Dashboard
-- Clock In / Clock Out
-- Time History
-- Profile
-
-## Web Dashboard
-
-- Admin Dashboard
-- Employees Page
-- Reports Page
-- Audit Logs
-- Settings
-
----
-
-# Backend Progress
-
-## Completed Features
-
-### Day 1
-
-- Project planning
-- Architecture design
-- Database planning
-
-### Day 2
-
-- Express server configured
-- PostgreSQL database connection established
-- Dockerized PostgreSQL instance running
-- RabbitMQ service configured
-- pgAdmin service configured
-- API route system created
-- Health endpoint operational
-- Employee API endpoint operational
-- SQL schema initialized
-
-### Day 3
-
-- User registration system
-- Login system
-- Password hashing
-- JWT token generation
-- Authentication middleware
-- Protected routes
-- Role-based authorization
-- Current user endpoint
-
-### Day 4
-
-- Clock-in endpoint implemented
-- Clock-out endpoint implemented
-- Time tracking controller created
-- Time routes created
-- Shift status endpoint implemented
-- Employee time history endpoint implemented
-- Double clock-in prevention implemented
-- Automatic worked time calculations added
-- JWT protection added to time tracking routes
-
-## Working Endpoints
-
-```http
-GET  /api/health
-
-POST /api/auth/register
-POST /api/auth/login
-GET  /api/auth/me
-
-GET  /api/admin/employees
-```
-
----
-
-# Goals of This Project
-
-This project is intended to demonstrate:
-
-- Full-stack development
-- Mobile application development
-- Secure authentication systems
-- Message queue architecture
-- SQL database design
-- Backend API development
-- Dockerized environments
-- Real-world scalable architecture
-
----
-
-# Planned Features
-
-- JWT Authentication
-- Audit logs
-- CSV exports
-- Manager approval workflow
 - GPS clock-in verification
 - QR code clock-in
-- Overtime calculations
-- Shift scheduling
-- Mobile notifications
-
----
-
-# Future Improvements
-
 - Payroll integration
-- Facial recognition clock-in
 - Push notifications
-- Multi-company support
-- Real-time dashboard updates
+- Real-time dashboards
 - Analytics and charts
+- Multi-company support
 
 ---
 
@@ -603,10 +487,6 @@ This project is intended to demonstrate:
 
 **Matthew J. Nicol**
 
-GitHub: [https://github.com/Mjn92](https://github.com/Mjn92)
+GitHub: https://github.com/Mjn92
 
-LinkedIn: [https://www.linkedin.com/in/matthew-nicol-56b089b0/](https://www.linkedin.com/in/matthew-nicol-56b089b0/)
-
-```
-
-```
+LinkedIn: https://www.linkedin.com/in/matthew-nicol-56b089b0/
