@@ -64,6 +64,65 @@ GET /api/auth/me
 - Admin routes restricted to manager/admin roles
 - Session expiration configured through JWT
 
+## Day 4 - Clock In / Clock Out Logic
+
+- Clock-in endpoint created
+- Clock-out endpoint created
+- Current clock status endpoint created
+- Personal time entries endpoint created
+- Double clock-in prevention added
+- Clock-out without active shift prevention added
+- Total worked minutes calculation added
+- Time routes protected with JWT authentication
+- Employee shift status tracking implemented
+- Postman testing completed for clock-in/clock-out workflow
+
+### New Time Tracking Routes
+
+```http
+POST /api/time/clock-in
+POST /api/time/clock-out
+GET  /api/time/status
+GET  /api/time/my-entries
+```
+
+### Time Tracking Features
+
+- Employees can clock in once per active shift
+- Employees cannot clock in twice without clocking out
+- Employees cannot clock out without an active shift
+- Total worked minutes are automatically calculated
+- Employees can view their complete shift history
+- Current shift status can be checked in real time
+- All time tracking routes require authentication
+
+### Clock In / Clock Out Workflow
+
+```text
+Employee Login
+      |
+      v
+Clock In Request
+      |
+      v
+Create Open Time Entry
+      |
+      v
+Employee Working
+      |
+      v
+Clock Out Request
+      |
+      v
+Calculate Worked Time
+      |
+      v
+Close Time Entry
+      |
+      v
+Store Shift Record
+```
+
 ---
 
 # Features
@@ -371,6 +430,15 @@ GET /api/admin/employees
 
 Returns employee list.
 
+### Clock-In/Clock-out Routes
+
+```http
+POST /api/time/clock-in
+POST /api/time/clock-out
+GET  /api/time/status
+GET  /api/time/my-entries
+```
+
 ---
 
 # RabbitMQ Queues
@@ -464,6 +532,18 @@ Returns employee list.
 - Protected routes
 - Role-based authorization
 - Current user endpoint
+
+### Day 4
+
+- Clock-in endpoint implemented
+- Clock-out endpoint implemented
+- Time tracking controller created
+- Time routes created
+- Shift status endpoint implemented
+- Employee time history endpoint implemented
+- Double clock-in prevention implemented
+- Automatic worked time calculations added
+- JWT protection added to time tracking routes
 
 ## Working Endpoints
 
