@@ -1,4 +1,3 @@
-````md
 # ShiftStack
 
 A full-stack employee clock-in and clock-out system built with React Native, React, RabbitMQ, PostgreSQL, and Node.js.
@@ -9,7 +8,7 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 
 # Current Project Status
 
-## Day 1 - Project Planning & Setup ✅
+## Day 1 - Project Planning & Setup
 
 - Project architecture planned
 - GitHub repository initialized
@@ -21,7 +20,7 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 - Database schema drafted
 - API routes planned
 
-## Day 2 - Backend Foundation ✅
+## Day 2 - Backend Foundation
 
 - Backend Express server created
 - PostgreSQL database connected
@@ -34,7 +33,7 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 - Environment variables configured
 - Postman API testing setup started
 
-## Day 3 - Authentication System ✅
+## Day 3 - Authentication System
 
 - Employee registration endpoint created
 - Employee login endpoint created
@@ -55,6 +54,7 @@ POST /api/auth/register
 POST /api/auth/login
 GET /api/auth/me
 ```
+
 ````
 
 ### Security Improvements
@@ -528,3 +528,4 @@ This project is intended to demonstrate:
 GitHub: [https://github.com/Mjn92](https://github.com/Mjn92)
 
 LinkedIn: [https://www.linkedin.com/in/matthew-nicol-56b089b0/](https://www.linkedin.com/in/matthew-nicol-56b089b0/)
+````
