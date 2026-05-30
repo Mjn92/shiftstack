@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { sendToQueue } = require("../services/queueService");
 
 const clockIn = async (req, res) => {
   try {
@@ -13,16 +14,14 @@ const clockIn = async (req, res) => {
       return res.status(400).json({ error: "You are already clocked in" });
     }
 
-    const result = await pool.query(
-      `INSERT INTO time_entries (employee_id, clock_in, status)
-       VALUES ($1, NOW(), 'open')
-       RETURNING *`,
-      [employeeId],
-    );
+    await sendToQueue("clock_in_queue", {
+      type: "clock_in",
+      employee_id: employeeId,
+      timestamp: new Date().toISOString(),
+    });
 
-    res.status(201).json({
-      message: "Clocked in successfully",
-      time_entry: result.rows[0],
+    res.status(202).json({
+      message: "Clock-in request accepted",
     });
   } catch (err) {
     console.error("Clock in error:", err);
@@ -48,21 +47,14 @@ const clockOut = async (req, res) => {
         .json({ error: "You are not currently clocked in" });
     }
 
-    const entry = openEntry.rows[0];
+    await sendToQueue("clock_out_queue", {
+      type: "clock_out",
+      employee_id: employeeId,
+      timestamp: new Date().toISOString(),
+    });
 
-    const result = await pool.query(
-      `UPDATE time_entries
-       SET clock_out = NOW(),
-           total_minutes = FLOOR(EXTRACT(EPOCH FROM (NOW() - clock_in)) / 60),
-           status = 'closed'
-       WHERE id = $1
-       RETURNING *`,
-      [entry.id],
-    );
-
-    res.json({
-      message: "Clocked out successfully",
-      time_entry: result.rows[0],
+    res.status(202).json({
+      message: "Clock-out request accepted",
     });
   } catch (err) {
     console.error("Clock out error:", err);

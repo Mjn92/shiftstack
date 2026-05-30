@@ -8,6 +8,7 @@ const healthRoutes = require("./routes/healthRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 const timeRoutes = require("./routes/timeRoutes");
+const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
 
@@ -25,6 +26,12 @@ app.use("/api/time", timeRoutes);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const startServer = async () => {
+  await connectRabbitMQ();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();
