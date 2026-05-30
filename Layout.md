@@ -35,11 +35,11 @@ Use `- [x]` for completed tasks and `- [ ]` for unfinished tasks.
 
 ## Deliverables
 
-- [ ] Login system working
-- [ ] Password hashing added
-- [ ] JWT/session token created
-- [ ] Employee roles added: employee, manager, admin
-- [ ] Protected routes working
+- [x] Login system working
+- [x] Password hashing added
+- [x] JWT/session token created
+- [x] Employee roles added: employee, manager, admin
+- [x] Protected routes working
 
 ---
 

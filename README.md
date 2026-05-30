@@ -1,3 +1,4 @@
+````md
 # ShiftStack
 
 A full-stack employee clock-in and clock-out system built with React Native, React, RabbitMQ, PostgreSQL, and Node.js.
@@ -8,7 +9,7 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 
 # Current Project Status
 
-## Day 1 Completed
+## Day 1 - Project Planning & Setup ✅
 
 - Project architecture planned
 - GitHub repository initialized
@@ -20,7 +21,7 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 - Database schema drafted
 - API routes planned
 
-## Day 2 Completed
+## Day 2 - Backend Foundation ✅
 
 - Backend Express server created
 - PostgreSQL database connected
@@ -32,6 +33,38 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 - PostgreSQL schema initialized
 - Environment variables configured
 - Postman API testing setup started
+
+## Day 3 - Authentication System ✅
+
+- Employee registration endpoint created
+- Employee login endpoint created
+- Password hashing implemented with bcrypt
+- JWT authentication implemented
+- Authentication middleware created
+- Protected route system created
+- Role-based access control middleware created
+- Current user endpoint created
+- Admin routes protected
+- Token validation working
+- Authentication testing completed in Postman
+
+### New API Routes
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+GET /api/auth/me
+```
+````
+
+### Security Improvements
+
+- Passwords are securely hashed before storage
+- JWT tokens used for authentication
+- Protected routes require valid authentication token
+- Role-based authorization implemented
+- Admin routes restricted to manager/admin roles
+- Session expiration configured through JWT
 
 ---
 
@@ -324,6 +357,14 @@ GET /api/health
 
 Returns API status.
 
+### Authentication Routes
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+```
+
 ### Admin Routes
 
 ```http
@@ -355,16 +396,21 @@ Returns employee list.
 - Backend/server separation
 - PostgreSQL database isolation
 - Structured API architecture
+- Password hashing with bcrypt
+- JWT authentication
+- Protected routes
+- Role-based access control
+- Token validation
 
 ## Planned
 
-- Password hashing with bcrypt
-- JWT authentication
-- Role-based access control
-- Secure API validation
 - Audit logging
-- Session expiration
-- Protected routes
+- Session expiration table integration
+- Refresh tokens
+- Rate limiting
+- Secure API validation
+- Multi-factor authentication
+- Account lockout protection
 
 ---
 
@@ -388,9 +434,17 @@ Returns employee list.
 
 ---
 
-# Week 2 Backend Progress
+# Backend Progress
 
-## Completed Backend Features
+## Completed Features
+
+### Day 1
+
+- Project planning
+- Architecture design
+- Database planning
+
+### Day 2
 
 - Express server configured
 - PostgreSQL database connection established
@@ -401,13 +455,28 @@ Returns employee list.
 - Health endpoint operational
 - Employee API endpoint operational
 - SQL schema initialized
-- Test employee insertion completed
 
-## Backend Endpoints Working
+### Day 3
+
+- User registration system
+- Login system
+- Password hashing
+- JWT token generation
+- Authentication middleware
+- Protected routes
+- Role-based authorization
+- Current user endpoint
+
+## Working Endpoints
 
 ```http
-GET /api/health
-GET /api/admin/employees
+GET  /api/health
+
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+
+GET  /api/admin/employees
 ```
 
 ---
@@ -430,7 +499,6 @@ This project is intended to demonstrate:
 # Planned Features
 
 - JWT Authentication
-- Secure password hashing
 - Audit logs
 - CSV exports
 - Manager approval workflow
@@ -457,6 +525,6 @@ This project is intended to demonstrate:
 
 **Matthew J. Nicol**
 
-GitHub: https://github.com/Mjn92
+GitHub: [https://github.com/Mjn92](https://github.com/Mjn92)
 
-LinkedIn: https://www.linkedin.com/in/matthew-nicol-56b089b0/
+LinkedIn: [https://www.linkedin.com/in/matthew-nicol-56b089b0/](https://www.linkedin.com/in/matthew-nicol-56b089b0/)
