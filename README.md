@@ -223,25 +223,307 @@ PostgreSQL Database
 
 # Development Progress
 
-(Keep your Day 1 – Day 12 progress section here)
+# Frontend Progress
+
+## Mobile App
+
+### Completed Features
+
+#### Day 6
+
+- Login screen created
+- Dashboard screen created
+- Clock screen created
+- Time history screen created
+- Navigation stack configured
+- Auth context connected
+- Secure token storage added
+- API helper configured
+- Backend integration completed
+
+### Mobile Screens
+
+- Login Screen
+- Dashboard Screen
+- Clock In / Clock Out Screen
+- Time History Screen
+
+### Mobile Technologies
+
+- React Native
+- Expo
+- React Navigation
+- Axios
+- Expo SecureStore
+
+# Backend Progress
+
+## Completed Features
+
+### Day 1
+
+- Project planning
+- Architecture design
+- Database planning
+
+### Day 2
+
+- Express server configured
+- PostgreSQL database connection established
+- Dockerized PostgreSQL instance running
+- RabbitMQ service configured
+- pgAdmin service configured
+- API route system created
+- Health endpoint operational
+- Employee API endpoint operational
+- SQL schema initialized
+
+### Day 3
+
+- User registration system
+- Login system
+- Password hashing
+- JWT token generation
+- Authentication middleware
+- Protected routes
+- Role-based authorization
+- Current user endpoint
+
+### Day 4
+
+- Clock-in endpoint implemented
+- Clock-out endpoint implemented
+- Time tracking controller created
+- Time routes created
+- Shift status endpoint implemented
+- Employee time history endpoint implemented
+- Double clock-in prevention implemented
+- Automatic worked time calculations added
+- JWT protection added to time tracking routes
+
+### Day 5
+
+- RabbitMQ connection service implemented
+- Queue publishing service created
+- Clock worker service implemented
+- Clock-in queue integrated
+- Clock-out queue integrated
+- API server publishing messages to RabbitMQ
+- Worker consuming queue messages
+- PostgreSQL updates performed by worker
+- Queue monitoring configured
+- Message-driven architecture established
+
+### Day 6
+
+- React Native mobile application initialized
+- Navigation system implemented
+- Authentication context implemented
+- Secure token storage implemented
+- Login screen connected to backend
+- Dashboard screen created
+- Clock tracking screen created
+- Time history screen created
+- Mobile application connected to API
+
+## Working Endpoints
+
+```http
+GET  /api/health
+
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+
+GET  /api/admin/employees
+
+POST /api/time/clock-in
+POST /api/time/clock-out
+GET  /api/time/status
+GET  /api/time/my-entries
+```
 
 ---
 
 # Installation
 
-(Keep your existing installation section)
+## Clone Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/shiftstack.git
+cd shiftstack
+```
+
+## Install Dependencies
+
+### Mobile App
+
+```bash
+cd mobile-app
+npm install
+```
+
+### Web Dashboard
+
+```bash
+cd ../web-dashboard
+npm install
+```
+
+### Backend
+
+```bash
+cd ../backend
+npm install
+```
+
+---
+
+# Start Docker Services
+
+From project root:
+
+```bash
+docker compose up -d
+```
+
+Services included:
+
+- PostgreSQL
+- RabbitMQ
+- pgAdmin
+
+---
+
+# Run Applications
+
+## Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+Runs on:
+
+```text
+http://localhost:5000
+```
+
+## RabbitMQ Worker
+
+```bash
+cd backend
+npm run worker:clock
+```
+
+## Web Dashboard
+
+```bash
+cd web-dashboard
+npm run dev
+```
+
+Runs on:
+
+```text
+http://localhost:3000
+```
+
+## Mobile App
+
+```bash
+cd mobile-app
+npm start
+```
+
+Scan QR code with Expo Go.
+
+---
+
+# Environment Variables
+
+Create `.env` inside backend folder:
+
+```env
+PORT=5000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=admin
+DB_PASSWORD=password
+DB_NAME=shiftstack
+
+RABBITMQ_URL=amqp://localhost
+
+JWT_SECRET=supersecretkey
+```
 
 ---
 
 # API Documentation
 
-(Keep your existing API routes section)
+# API Routes
+
+## Current Routes
+
+### Health Check
+
+```http
+GET /api/health
+```
+
+### Authentication
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+```
+
+### Time Tracking
+
+```http
+POST /api/time/clock-in
+POST /api/time/clock-out
+GET  /api/time/status
+GET  /api/time/my-entries
+```
+
+### Admin
+
+```http
+GET /api/admin/employees
+```
 
 ---
 
 # Security Features
 
-(Keep your existing security section)
+## Current
+
+- Environment variable configuration
+- Backend/server separation
+- PostgreSQL database isolation
+- Structured API architecture
+- Password hashing with bcrypt
+- JWT authentication
+- Protected routes
+- Role-based access control
+- Token validation
+- Message queue isolation
+- Worker-based database processing
+- Decoupled API/database architecture
+
+## Planned
+
+- Audit logging
+- Session expiration table integration
+- Refresh tokens
+- Rate limiting
+- Secure API validation
+- Multi-factor authentication
+- Account lockout protection
 
 ---
 
