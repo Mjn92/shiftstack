@@ -47,7 +47,6 @@ ShiftStack is designed as a portfolio project to demonstrate modern full-stack a
 - Token validation working
 - Authentication testing completed in Postman
 
-````md
 ### New API Routes
 
 ```http
@@ -527,4 +526,7 @@ This project is intended to demonstrate:
 GitHub: [https://github.com/Mjn92](https://github.com/Mjn92)
 
 LinkedIn: [https://www.linkedin.com/in/matthew-nicol-56b089b0/](https://www.linkedin.com/in/matthew-nicol-56b089b0/)
-````
+
+```
+
+```
