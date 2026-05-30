@@ -47,12 +47,12 @@ Use `- [x]` for completed tasks and `- [ ]` for unfinished tasks.
 
 ## Deliverables
 
-- [ ] Clock-in endpoint
-- [ ] Clock-out endpoint
-- [ ] Time entries table
-- [ ] Prevent double clock-in
-- [ ] Prevent clock-out without clock-in
-- [ ] Total hours calculation
+- [x] Clock-in endpoint
+- [x] Clock-out endpoint
+- [x] Time entries table
+- [x] Prevent double clock-in
+- [x] Prevent clock-out without clock-in
+- [x] Total hours calculation
 
 ---
 
