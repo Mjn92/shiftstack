@@ -1,7 +1,10 @@
 const express = require("express");
 const router = express.Router();
 
-const { getEmployees } = require("../controllers/employeeController");
+const {
+  getEmployees,
+  getTimeEntries,
+} = require("../controllers/employeeController");
 
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
@@ -10,6 +13,12 @@ router.get(
   protect,
   requireRole("admin", "manager"),
   getEmployees,
+);
+router.get(
+  "/time-entries",
+  protect,
+  requireRole("admin", "manager"),
+  getTimeEntries,
 );
 
 module.exports = router;
