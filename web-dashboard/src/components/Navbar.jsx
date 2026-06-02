@@ -15,19 +15,96 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-black text-white px-6 py-4 flex justify-between items-center">
+    <nav
+      style={{
+        backgroundColor: "#111827",
+        color: "white",
+        padding: "16px 32px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        borderBottom: "3px solid #2563eb",
+      }}
+    >
       <div>
-        <h1 className="font-bold text-xl">ShiftStack</h1>
-        <p className="text-sm text-gray-300">
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "28px",
+            fontWeight: "bold",
+          }}
+        >
+          ShiftStack
+        </h1>
+
+        <p
+          style={{
+            margin: 0,
+            color: "#9ca3af",
+          }}
+        >
           {employee?.first_name} | {employee?.role}
         </p>
       </div>
 
-      <div className="flex gap-4 items-center">
-        <Link href="/dashboard">Dashboard</Link>
-        <Link href="/employees">Employees</Link>
-        <Link href="/time-entries">Time Entries</Link>
-        <button onClick={handleLogout} className="bg-red-600 px-3 py-2 rounded">
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          alignItems: "center",
+        }}
+      >
+        <Link
+          href="/dashboard"
+          style={{
+            backgroundColor: "#1f2937",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            textDecoration: "none",
+          }}
+        >
+          Dashboard
+        </Link>
+
+        <Link
+          href="/employees"
+          style={{
+            backgroundColor: "#1f2937",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            textDecoration: "none",
+          }}
+        >
+          Employees
+        </Link>
+
+        <Link
+          href="/time-entries"
+          style={{
+            backgroundColor: "#1f2937",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            textDecoration: "none",
+          }}
+        >
+          Time Entries
+        </Link>
+
+        <button
+          onClick={handleLogout}
+          style={{
+            backgroundColor: "#dc2626",
+            color: "white",
+            border: "none",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
           Logout
         </button>
       </div>
