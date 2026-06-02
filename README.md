@@ -256,22 +256,23 @@ PostgreSQL Database
 - Axios
 - Expo SecureStore
 
-### Day 7
+#### Day 7
 
 - Mobile API networking issues resolved
-- Backend connection troubleshooting completed
-- Axios API service improved
+- Authentication flow testing completed
+- Axios service configuration improved
 - Environment-based API configuration added
-- Android emulator networking configured
-- Physical device backend connectivity tested
-- Backend timeout handling improved
-- Authentication request debugging added
+- Backend connectivity debugging completed
 - Login error handling improved
-- Backend health testing endpoints added
-- API request logging implemented
+- Session persistence verified
 - Cross-device mobile testing completed
-- Mobile authentication flow stabilized
-- Session persistence improvements implemented
+
+### Planned Web Dashboard Screens
+
+- Employee Login
+- Manager Dashboard
+- Employee Management
+- Reporting Screen
 
 # Backend Progress
 
@@ -342,6 +343,21 @@ PostgreSQL Database
 - Clock tracking screen created
 - Time history screen created
 - Mobile application connected to API
+
+### Day 7
+
+- Mobile API networking issues resolved
+- Backend connection troubleshooting completed
+- Axios API service improved
+- Environment-based API configuration added
+- Android emulator networking configured
+- Backend timeout handling improved
+- Authentication request debugging added
+- Login error handling improved
+- Backend health testing endpoints added
+- API request logging implemented
+- Cross-device mobile testing completed
+- Mobile authentication flow stabilized
 
 ## Working Endpoints
 
