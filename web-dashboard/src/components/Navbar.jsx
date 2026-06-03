@@ -93,6 +93,19 @@ export default function Navbar() {
           Time Entries
         </Link>
 
+        <Link
+          href="/audit-logs"
+          style={{
+            backgroundColor: "#1f2937",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            textDecoration: "none",
+          }}
+        >
+          Audit Logs
+        </Link>
+
         <button
           onClick={handleLogout}
           style={{
