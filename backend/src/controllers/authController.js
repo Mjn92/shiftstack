@@ -2,6 +2,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 
+const { createAuditLog } = require("../services/auditLogService");
+
 const register = async (req, res) => {
   try {
     const { first_name, last_name, email, password, role } = req.body;
@@ -31,6 +33,12 @@ const register = async (req, res) => {
       [first_name, last_name, email, password_hash, role || "employee"],
     );
 
+    await createAuditLog({
+      employee_id: result.rows[0].id,
+      action: "REGISTER",
+      details: `New employee registered: ${result.rows[0].email}`,
+    });
+
     res.status(201).json({
       message: "Employee registered successfully",
       employee: result.rows[0],
@@ -51,6 +59,12 @@ const login = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await createAuditLog({
+        employee_id: null,
+        action: "FAILED_LOGIN",
+        details: `Failed login attempt for email: ${email}`,
+      });
+
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
@@ -62,6 +76,12 @@ const login = async (req, res) => {
     );
 
     if (!passwordMatch) {
+      await createAuditLog({
+        employee_id: employee.id,
+        action: "FAILED_LOGIN",
+        details: `Failed password attempt for email: ${email}`,
+      });
+
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
@@ -74,6 +94,12 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" },
     );
+
+    await createAuditLog({
+      employee_id: employee.id,
+      action: "LOGIN",
+      details: `Employee logged in: ${employee.email}`,
+    });
 
     res.json({
       message: "Login successful",

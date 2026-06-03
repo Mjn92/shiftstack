@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   getEmployees,
   getTimeEntries,
+  getAuditLogs,
 } = require("../controllers/employeeController");
 
 const { protect, requireRole } = require("../middleware/authMiddleware");
@@ -20,5 +21,6 @@ router.get(
   requireRole("admin", "manager"),
   getTimeEntries,
 );
+router.get("/audit-logs", protect, requireRole("admin"), getAuditLogs);
 
 module.exports = router;
