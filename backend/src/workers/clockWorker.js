@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { connectRabbitMQ } = require("../config/rabbitmq");
+const { createAuditLog } = require("../services/auditLogService");
 
 const CLOCK_IN_QUEUE = "clock_in_queue";
 const CLOCK_OUT_QUEUE = "clock_out_queue";
@@ -35,6 +36,12 @@ const startClockWorker = async () => {
            VALUES ($1, NOW(), 'open')`,
           [employeeId],
         );
+
+        await createAuditLog({
+          employee_id: employeeId,
+          action: "CLOCK_IN",
+          details: `Employee ${employeeId} clocked in`,
+        });
       }
 
       channel.ack(msg);
@@ -71,6 +78,12 @@ const startClockWorker = async () => {
            WHERE id = $1`,
           [entry.id],
         );
+
+        await createAuditLog({
+          employee_id: employeeId,
+          action: "CLOCK_OUT",
+          details: `Employee ${employeeId} clocked out`,
+        });
       }
 
       channel.ack(msg);

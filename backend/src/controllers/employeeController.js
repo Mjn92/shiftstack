@@ -42,7 +42,32 @@ const getTimeEntries = async (req, res) => {
   }
 };
 
+const getAuditLogs = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        audit_logs.id,
+        audit_logs.employee_id,
+        employees.first_name,
+        employees.last_name,
+        employees.email,
+        audit_logs.action,
+        audit_logs.details,
+        audit_logs.created_at
+       FROM audit_logs
+       LEFT JOIN employees ON employees.id = audit_logs.employee_id
+       ORDER BY audit_logs.created_at DESC`,
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Get audit logs error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 module.exports = {
   getEmployees,
   getTimeEntries,
+  getAuditLogs,
 };
