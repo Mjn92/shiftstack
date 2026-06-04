@@ -8,15 +8,17 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useContext(AuthContext);
 
-  const [email, setEmail] = useState("matthew@shiftstack.com");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
 
     try {
-      const data = await login(email, password);
+      const cleanEmail = email.trim().toLowerCase();
+      const data = await login(cleanEmail, password);
 
       if (data.employee.role !== "admin" && data.employee.role !== "manager") {
         setError("Only admins and managers can access this dashboard.");
@@ -30,38 +32,131 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-8 rounded-xl shadow-md w-full max-w-md"
-      >
-        <h1 className="text-3xl font-bold text-center mb-2">ShiftStack</h1>
-        <p className="text-center text-gray-500 mb-6">Admin Dashboard Login</p>
+    <main style={styles.page}>
+      <section style={styles.card}>
+        <div style={styles.brandBlock}>
+          <h1 style={styles.logo}>ShiftStack</h1>
+          <p style={styles.subtitle}>Admin Dashboard Login</p>
+        </div>
 
-        {error && (
-          <p className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</p>
-        )}
+        {error && <p style={styles.errorBox}>{error}</p>}
 
-        <label className="block mb-2 font-medium">Email</label>
-        <input
-          className="w-full border p-3 rounded mb-4"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <form onSubmit={handleLogin}>
+          <label style={styles.label}>Email Address</label>
+          <input
+            style={styles.input}
+            id="email"
+            name="email"
+            type="email"
+            value={email}
+            autoComplete="username"
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-        <label className="block mb-2 font-medium">Password</label>
-        <input
-          className="w-full border p-3 rounded mb-6"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <input
+            style={styles.input}
+            id="password"
+            name="password"
+            type="password"
+            value={password}
+            autoComplete="current-password"
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-        <button className="w-full bg-black text-white p-3 rounded font-semibold">
-          Login
-        </button>
-      </form>
+          <button style={styles.button}>Sign In</button>
+        </form>
+
+        <p style={styles.footerText}>
+          Secure access for managers and administrators.
+        </p>
+      </section>
     </main>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#EAF3FF",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+  },
+
+  card: {
+    width: "100%",
+    maxWidth: "430px",
+    background: "#FFFFFF",
+    borderRadius: "22px",
+    padding: "36px",
+    boxShadow: "0 18px 45px rgba(15, 23, 42, 0.18)",
+    border: "1px solid #DCEBFF",
+  },
+
+  brandBlock: {
+    textAlign: "center",
+    marginBottom: "28px",
+  },
+
+  logo: {
+    margin: 0,
+    fontSize: "38px",
+    fontWeight: "800",
+    color: "#0A4DA2",
+    letterSpacing: "-0.5px",
+  },
+
+  subtitle: {
+    marginTop: "8px",
+    color: "#6B7280",
+    fontSize: "16px",
+  },
+
+  errorBox: {
+    background: "#FEE2E2",
+    color: "#991B1B",
+    padding: "12px 14px",
+    borderRadius: "10px",
+    marginBottom: "20px",
+    fontWeight: "600",
+  },
+
+  label: {
+    display: "block",
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: "8px",
+  },
+
+  input: {
+    width: "100%",
+    border: "1px solid #D1D5DB",
+    borderRadius: "12px",
+    padding: "14px 16px",
+    marginBottom: "18px",
+    fontSize: "15px",
+    outline: "none",
+    background: "#F9FAFB",
+  },
+
+  button: {
+    width: "100%",
+    background: "#0A4DA2",
+    color: "#FFFFFF",
+    border: "none",
+    padding: "15px",
+    borderRadius: "12px",
+    fontSize: "16px",
+    fontWeight: "800",
+    cursor: "pointer",
+    marginTop: "6px",
+  },
+
+  footerText: {
+    textAlign: "center",
+    marginTop: "22px",
+    color: "#6B7280",
+    fontSize: "14px",
+  },
+};

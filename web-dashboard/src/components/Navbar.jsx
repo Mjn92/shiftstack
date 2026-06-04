@@ -2,17 +2,31 @@
 
 import Link from "next/link";
 import { useContext } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AuthContext } from "../context/AuthContext";
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
+
   const { employee, logout } = useContext(AuthContext);
 
   const handleLogout = () => {
     logout();
     router.push("/login");
   };
+
+  const getLinkStyle = (path) => ({
+    backgroundColor: pathname === path ? "#2563EB" : "#1F2937",
+    color: "white",
+    padding: "10px 16px",
+    borderRadius: "8px",
+    textDecoration: "none",
+    fontWeight: pathname === path ? "bold" : "normal",
+    boxShadow: pathname === path ? "0 0 12px rgba(37, 99, 235, 0.6)" : "none",
+    border: pathname === path ? "1px solid #60A5FA" : "1px solid transparent",
+    transition: "all 0.2s ease",
+  });
 
   return (
     <nav
@@ -23,7 +37,7 @@ export default function Navbar() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        borderBottom: "3px solid #2563eb",
+        borderBottom: "3px solid #2563EB",
       }}
     >
       <div>
@@ -40,7 +54,7 @@ export default function Navbar() {
         <p
           style={{
             margin: 0,
-            color: "#9ca3af",
+            color: "#9CA3AF",
           }}
         >
           {employee?.first_name} | {employee?.role}
@@ -54,75 +68,30 @@ export default function Navbar() {
           alignItems: "center",
         }}
       >
-        <Link
-          href="/dashboard"
-          style={{
-            backgroundColor: "#1f2937",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            textDecoration: "none",
-          }}
-        >
+        <Link href="/dashboard" style={getLinkStyle("/dashboard")}>
           Dashboard
         </Link>
 
-        <Link
-          href="/employees"
-          style={{
-            backgroundColor: "#1f2937",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            textDecoration: "none",
-          }}
-        >
+        <Link href="/employees" style={getLinkStyle("/employees")}>
           Employees
         </Link>
 
-        <Link
-          href="/time-entries"
-          style={{
-            backgroundColor: "#1f2937",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            textDecoration: "none",
-          }}
-        >
+        <Link href="/time-entries" style={getLinkStyle("/time-entries")}>
           Time Entries
         </Link>
 
-        <Link
-          href="/audit-logs"
-          style={{
-            backgroundColor: "#1f2937",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            textDecoration: "none",
-          }}
-        >
+        <Link href="/audit-logs" style={getLinkStyle("/audit-logs")}>
           Audit Logs
         </Link>
 
-        <Link
-          href="/reports"
-          style={{
-            backgroundColor: "#1f2937",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            textDecoration: "none",
-          }}
-        >
+        <Link href="/reports" style={getLinkStyle("/reports")}>
           Reports
         </Link>
 
         <button
           onClick={handleLogout}
           style={{
-            backgroundColor: "#dc2626",
+            backgroundColor: "#DC2626",
             color: "white",
             border: "none",
             padding: "10px 16px",
