@@ -106,6 +106,19 @@ export default function Navbar() {
           Audit Logs
         </Link>
 
+        <Link
+          href="/reports"
+          style={{
+            backgroundColor: "#1f2937",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            textDecoration: "none",
+          }}
+        >
+          Reports
+        </Link>
+
         <button
           onClick={handleLogout}
           style={{

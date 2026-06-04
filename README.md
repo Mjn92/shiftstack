@@ -267,12 +267,18 @@ PostgreSQL Database
 - Session persistence verified
 - Cross-device mobile testing completed
 
+#### Day 9
+
+- Reports page created
+- Weekly reports table added
+- Date range filters added
+- CSV export button added
+
 ### Planned Web Dashboard Screens
 
 - Employee Login
 - Manager Dashboard
 - Employee Management
-- Reporting Screen
 
 # Backend Progress
 
@@ -371,6 +377,16 @@ PostgreSQL Database
 - Clock events added to audit logs
 - Admin audit log endpoint implemented
 
+### Day 9
+
+- Report controller implemented
+- Report routes implemented
+- Weekly report endpoint created
+- Weekly totals calculated from time entries
+- Employee and date filtering added
+- CSV export implemented
+- Manager/admin report access protected
+
 ## Working Endpoints
 
 ```http
@@ -388,6 +404,9 @@ GET  /api/time/status
 GET  /api/time/my-entries
 
 GET /api/admin/audit-logs
+
+GET /api/reports/weekly
+GET /api/reports/weekly/export
 ```
 
 ---
@@ -542,6 +561,8 @@ GET  /api/time/my-entries
 ```http
 GET /api/admin/employees
 GET /api/admin/audit-logs
+GET /api/reports/weekly
+GET /api/reports/weekly/export
 ```
 
 ---
