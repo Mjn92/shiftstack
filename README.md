@@ -189,7 +189,7 @@ PostgreSQL Database
 
 ## RabbitMQ Dashboard
 
-<img width="200" height="400" alt="image" src="image.png" />
+<img width="500" height="1000" alt="image" src="image.png" />
 
 ---
 
