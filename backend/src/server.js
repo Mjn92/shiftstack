@@ -18,6 +18,7 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:3000",
+  "https://shiftstack-lovat.vercel.app",
   process.env.FRONTEND_URL,
   process.env.FRONTEND_URL_2,
 ].filter(Boolean);
@@ -27,14 +28,11 @@ app.use(
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
 
-      const isAllowed =
-        allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
-
-      if (isAllowed) {
+      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
         return callback(null, true);
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      return callback(new Error(`CORS blocked: ${origin}`));
     },
     credentials: true,
   }),
