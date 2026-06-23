@@ -8,13 +8,20 @@ import {
   Alert,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
+import Constants from "expo-constants";
 
 const LoginScreen = () => {
   const { login } = useContext(AuthContext);
 
-  const [email, setEmail] = useState("matthew@shiftstack.com");
-  const [password, setPassword] = useState("Password123!");
+  const isDevelopment = process.env.APP_ENV === "development";
 
+  const [email, setEmail] = useState(
+    isDevelopment ? process.env.EXPO_PUBLIC_DEFAULT_EMAIL || "" : "",
+  );
+
+  const [password, setPassword] = useState(
+    isDevelopment ? process.env.EXPO_PUBLIC_DEFAULT_PASSWORD || "" : "",
+  );
   const handleLogin = async () => {
     try {
       const cleanEmail = email.trim().toLowerCase();
