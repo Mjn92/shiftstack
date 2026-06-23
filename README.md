@@ -171,21 +171,21 @@ PostgreSQL Database
 
 ## Mobile Login Screen
 
-<img width="400" height="800" alt="image" src="https://github.com/user-attachments/assets/58a9a9fb-3c25-41d3-bc60-fbe6dd730918" />
+<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/58a9a9fb-3c25-41d3-bc60-fbe6dd730918" />
 
 ## Employee Dashboard
 
-<img width="590" height="1278" alt="image" src="https://github.com/user-attachments/assets/8dbfb4cd-4741-44fb-ab57-b9d49248c511" />
+<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/8dbfb4cd-4741-44fb-ab57-b9d49248c511" />
 
 ## Clock In / Clock Out Screen
 
-<img width="590" height="1278" alt="image" src="https://github.com/user-attachments/assets/12f7fd78-ac94-4b14-9077-0715eafea9c5" />
+<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/12f7fd78-ac94-4b14-9077-0715eafea9c5" />
 
-<img width="590" height="1278" alt="image" src="https://github.com/user-attachments/assets/74b2aa09-123c-4e15-a14a-31d4a7ddc6ee" />
+<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/74b2aa09-123c-4e15-a14a-31d4a7ddc6ee" />
 
 ## Time History Screen
 
-<img width="590" height="1278" alt="image" src="https://github.com/user-attachments/assets/576e60bf-b119-4be2-9110-e58159b80922" />
+<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/576e60bf-b119-4be2-9110-e58159b80922" />
 
 ## RabbitMQ Dashboard
 
