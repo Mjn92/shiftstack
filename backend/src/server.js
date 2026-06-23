@@ -16,7 +16,11 @@ const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
 
-const allowedOrigins = ["http://localhost:3000", process.env.FRONTEND_URL];
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL_2,
+].filter(Boolean);
 
 app.use(
   cors({
