@@ -15,22 +15,35 @@ export const AuthProvider = ({ children }) => {
       password,
     });
 
-    localStorage.setItem("token", response.data.token);
+    localStorage.setItem("accessToken", response.data.accessToken);
+    localStorage.setItem("refreshToken", response.data.refreshToken);
+
     setEmployee(response.data.employee);
 
     return response.data;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    try {
+      await api.post("/auth/logout", { refreshToken });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("token");
+
     setEmployee(null);
   };
 
   const loadUser = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const accessToken = localStorage.getItem("accessToken");
 
-      if (!token) {
+      if (!accessToken) {
         setLoading(false);
         return;
       }
@@ -38,6 +51,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.get("/auth/me");
       setEmployee(response.data);
     } catch (err) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("token");
       setEmployee(null);
     } finally {

@@ -5,6 +5,10 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const slowDown = require("express-slow-down");
+const fs = require("fs");
+const path = require("path");
+const morgan = require("morgan");
 
 const healthRoutes = require("./routes/healthRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -14,6 +18,22 @@ const reportRoutes = require("./routes/reportRoutes");
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
+
+const logDirectory = path.join(__dirname, "../logs");
+
+if (!fs.existsSync(logDirectory)) {
+  fs.mkdirSync(logDirectory, { recursive: true });
+}
+
+const accessLogStream = fs.createWriteStream(
+  path.join(logDirectory, "access.log"),
+  { flags: "a" },
+);
+
+const errorLogStream = fs.createWriteStream(
+  path.join(logDirectory, "error.log"),
+  { flags: "a" },
+);
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -41,15 +61,88 @@ app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 app.use(helmet());
 
-const loginLimiter = rateLimit({
+app.use(
+  morgan(":date[iso] :remote-addr :method :url :status :response-time ms", {
+    stream: accessLogStream,
+  }),
+);
+
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
-    error: "Too many login attempts. Please try again later.",
+    error: "Too many requests. Please try again later.",
   },
 });
 
-app.use("/api/auth/login", loginLimiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many login or registration attempts. Please try again later.",
+  },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many account creation attempts. Please try again later.",
+  },
+});
+
+const clockLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many clock requests. Please wait and try again.",
+  },
+});
+
+const reportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many report requests. Please wait and try again.",
+  },
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many admin requests. Please try again later.",
+  },
+});
+
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000,
+  delayAfter: 50,
+  delayMs: (hits) => hits * 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", speedLimiter);
+app.use("/api", apiLimiter);
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", registerLimiter);
+app.use("/api/time", clockLimiter);
+app.use("/api/reports", reportLimiter);
+app.use("/api/admin", adminLimiter);
 
 app.get("/", (req, res) => {
   res.send("ShiftStack Backend Running");
@@ -68,12 +161,37 @@ const startServer = async () => {
     await connectRabbitMQ();
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      const startupMessage = `Server running on port ${PORT}`;
+
+      console.log(startupMessage);
+
+      fs.appendFileSync(
+        path.join(logDirectory, "access.log"),
+        `[${new Date().toISOString()}] ${startupMessage}\n`,
+      );
     });
   } catch (err) {
     console.error("Startup failed:", err);
     process.exit(1);
   }
 };
+
+process.on("uncaughtException", (err) => {
+  fs.appendFileSync(
+    path.join(logDirectory, "error.log"),
+    `[${new Date().toISOString()}] ${err.stack}\n\n`,
+  );
+
+  console.error(err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  fs.appendFileSync(
+    path.join(logDirectory, "error.log"),
+    `[${new Date().toISOString()}] ${reason}\n\n`,
+  );
+
+  console.error(reason);
+});
 
 startServer();

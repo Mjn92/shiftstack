@@ -1,9 +1,26 @@
 const pool = require("../config/db");
 const { Parser } = require("json2csv");
+const { createAuditLog } = require("../services/auditLogService");
 
 const getWeeklyReport = async (req, res) => {
   try {
     const { employee_id, start_date, end_date } = req.query;
+
+    if (
+      req.user.role === "employee" &&
+      employee_id &&
+      Number(employee_id) !== req.user.id
+    ) {
+      await createAuditLog({
+        employee_id: req.user.id,
+        action: "ACCESS_DENIED",
+        details: "Attempted to access another employee's report",
+      });
+
+      return res.status(403).json({
+        error: "Access denied.",
+      });
+    }
 
     let query = `
       SELECT 

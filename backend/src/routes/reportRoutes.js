@@ -6,19 +6,15 @@ const {
   exportWeeklyReportCsv,
 } = require("../controllers/reportController");
 
-const { protect, requireRole } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
-router.get(
-  "/weekly",
-  protect,
-  requireRole("admin", "manager"),
-  getWeeklyReport,
-);
+router.get("/weekly", protect, authorize("manager", "admin"), getWeeklyReport);
 
 router.get(
   "/weekly/export",
   protect,
-  requireRole("admin", "manager"),
+  authorize("manager", "admin"),
   exportWeeklyReportCsv,
 );
 

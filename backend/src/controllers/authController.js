@@ -3,6 +3,14 @@ const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 
 const { createAuditLog } = require("../services/auditLogService");
+const {
+  MAX_LOGIN_ATTEMPTS,
+  LOCKOUT_DURATION_MINUTES,
+} = require("../config/security");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../utils/tokenService");
 
 const register = async (req, res) => {
   try {
@@ -48,7 +56,6 @@ const register = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -70,29 +77,88 @@ const login = async (req, res) => {
 
     const employee = result.rows[0];
 
+    const now = new Date();
+
+    if (
+      employee.account_locked_until &&
+      new Date(employee.account_locked_until) > now
+    ) {
+      return res.status(423).json({
+        error: "Account temporarily locked. Please try again later.",
+      });
+    }
+
     const passwordMatch = await bcrypt.compare(
       password,
       employee.password_hash,
     );
 
     if (!passwordMatch) {
+      const failedAttempts = Number(employee.failed_login_attempts || 0) + 1;
+
+      let lockedUntil = null;
+
+      if (failedAttempts >= MAX_LOGIN_ATTEMPTS) {
+        lockedUntil = new Date(
+          Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000,
+        );
+      }
+
+      await pool.query(
+        `
+        UPDATE employees
+        SET
+          failed_login_attempts = $1,
+          last_failed_login = NOW(),
+          account_locked_until = $2
+        WHERE id = $3
+        `,
+        [failedAttempts, lockedUntil, employee.id],
+      );
+
       await createAuditLog({
         employee_id: employee.id,
         action: "FAILED_LOGIN",
         details: `Failed password attempt for email: ${email}`,
       });
 
+      if (lockedUntil) {
+        await createAuditLog({
+          employee_id: employee.id,
+          action: "ACCOUNT_LOCKED",
+          details: `Account locked after ${failedAttempts} failed login attempts`,
+        });
+
+        return res.status(423).json({
+          error: "Account temporarily locked. Please try again later.",
+        });
+      }
+
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const token = jwt.sign(
-      {
-        id: employee.id,
-        email: employee.email,
-        role: employee.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" },
+    await pool.query(
+      `
+      UPDATE employees
+      SET
+        failed_login_attempts = 0,
+        account_locked_until = NULL,
+        last_failed_login = NULL
+      WHERE id = $1
+      `,
+      [employee.id],
+    );
+
+    const accessToken = generateAccessToken(employee);
+    const refreshToken = generateRefreshToken(employee);
+
+    await pool.query(
+      `
+  INSERT INTO refresh_tokens
+  (employee_id, token, expires_at)
+  VALUES ($1, $2, NOW() + INTERVAL '7 days')
+  `,
+      [employee.id, refreshToken],
     );
 
     await createAuditLog({
@@ -101,9 +167,10 @@ const login = async (req, res) => {
       details: `Employee logged in: ${employee.email}`,
     });
 
-    res.json({
+    return res.json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       employee: {
         id: employee.id,
         first_name: employee.first_name,
@@ -115,6 +182,112 @@ const login = async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token required" });
+    }
+
+    const storedToken = await pool.query(
+      `
+      SELECT *
+      FROM refresh_tokens
+      WHERE token = $1
+        AND expires_at > NOW()
+      `,
+      [refreshToken],
+    );
+
+    if (storedToken.rows.length === 0) {
+      return res.status(401).json({
+        error: "Invalid or expired refresh token",
+      });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+    const employeeResult = await pool.query(
+      `
+      SELECT id, first_name, last_name, email, role
+      FROM employees
+      WHERE id = $1
+      `,
+      [decoded.id],
+    );
+
+    if (employeeResult.rows.length === 0) {
+      return res.status(401).json({ error: "Employee not found" });
+    }
+
+    const employee = employeeResult.rows[0];
+
+    const accessToken = generateAccessToken(employee);
+    const newRefreshToken = generateRefreshToken(employee);
+
+    await pool.query(
+      `
+      DELETE FROM refresh_tokens
+      WHERE token = $1
+      `,
+      [refreshToken],
+    );
+
+    await pool.query(
+      `
+      INSERT INTO refresh_tokens
+      (employee_id, token, expires_at)
+      VALUES ($1, $2, NOW() + INTERVAL '7 days')
+      `,
+      [employee.id, newRefreshToken],
+    );
+
+    await createAuditLog({
+      employee_id: employee.id,
+      action: "TOKEN_ROTATED",
+      details: "Refresh token rotated",
+    });
+
+    return res.json({
+      accessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (err) {
+    console.error("Refresh error:", err);
+
+    return res.status(401).json({
+      error: "Invalid refresh token",
+    });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [
+      refreshToken,
+    ]);
+
+    await createAuditLog({
+      employee_id: req.user.id,
+      action: "LOGOUT",
+      details: "Employee logged out",
+    });
+
+    res.json({
+      message: "Logout successful",
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Logout failed",
+    });
   }
 };
 
@@ -135,5 +308,7 @@ const me = async (req, res) => {
 module.exports = {
   register,
   login,
+  refresh,
+  logout,
   me,
 };
