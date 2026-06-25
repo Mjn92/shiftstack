@@ -11,7 +11,6 @@ const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 const timeRoutes = require("./routes/timeRoutes");
 const reportRoutes = require("./routes/reportRoutes");
-
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
@@ -41,8 +40,6 @@ app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 app.use(helmet());
-app.use("/api/auth/login", loginLimiter);
-app.use("/api/auth", authRoutes);
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
