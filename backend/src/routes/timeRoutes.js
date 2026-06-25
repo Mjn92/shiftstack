@@ -9,10 +9,34 @@ const {
 } = require("../controllers/timeController");
 
 const { protect } = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
-router.post("/clock-in", protect, clockIn);
-router.post("/clock-out", protect, clockOut);
-router.get("/status", protect, getStatus);
-router.get("/my-entries", protect, getMyEntries);
+router.post(
+  "/clock-in",
+  protect,
+  authorize("employee", "manager", "admin"),
+  clockIn,
+);
+
+router.post(
+  "/clock-out",
+  protect,
+  authorize("employee", "manager", "admin"),
+  clockOut,
+);
+
+router.get(
+  "/status",
+  protect,
+  authorize("employee", "manager", "admin"),
+  getStatus,
+);
+
+router.get(
+  "/my-entries",
+  protect,
+  authorize("employee", "manager", "admin"),
+  getMyEntries,
+);
 
 module.exports = router;

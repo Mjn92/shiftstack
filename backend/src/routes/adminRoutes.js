@@ -7,20 +7,18 @@ const {
   getAuditLogs,
 } = require("../controllers/employeeController");
 
-const { protect, requireRole } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
-router.get(
-  "/employees",
-  protect,
-  requireRole("admin", "manager"),
-  getEmployees,
-);
+router.get("/employees", protect, authorize("admin", "manager"), getEmployees);
+
 router.get(
   "/time-entries",
   protect,
-  requireRole("admin", "manager"),
+  authorize("admin", "manager"),
   getTimeEntries,
 );
-router.get("/audit-logs", protect, requireRole("admin"), getAuditLogs);
+
+router.get("/audit-logs", protect, authorize("admin"), getAuditLogs);
 
 module.exports = router;
