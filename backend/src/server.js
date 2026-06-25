@@ -41,15 +41,73 @@ app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 app.use(helmet());
 
-const loginLimiter = rateLimit({
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
-    error: "Too many login attempts. Please try again later.",
+    error: "Too many requests. Please try again later.",
   },
 });
 
-app.use("/api/auth/login", loginLimiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many login or registration attempts. Please try again later.",
+  },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many account creation attempts. Please try again later.",
+  },
+});
+
+const clockLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many clock requests. Please wait and try again.",
+  },
+});
+
+const reportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many report requests. Please wait and try again.",
+  },
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many admin requests. Please try again later.",
+  },
+});
+
+app.use("/api", apiLimiter);
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", registerLimiter);
+app.use("/api/time", clockLimiter);
+app.use("/api/reports", reportLimiter);
+app.use("/api/admin", adminLimiter);
 
 app.get("/", (req, res) => {
   res.send("ShiftStack Backend Running");
