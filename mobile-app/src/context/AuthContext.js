@@ -14,22 +14,35 @@ export const AuthProvider = ({ children }) => {
       password,
     });
 
-    await SecureStore.setItemAsync("token", response.data.token);
+    await SecureStore.setItemAsync("accessToken", response.data.accessToken);
+    await SecureStore.setItemAsync("refreshToken", response.data.refreshToken);
+
     setEmployee(response.data.employee);
 
     return response.data;
   };
 
   const logout = async () => {
+    const refreshToken = await SecureStore.getItemAsync("refreshToken");
+
+    try {
+      await api.post("/auth/logout", { refreshToken });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+
+    await SecureStore.deleteItemAsync("accessToken");
+    await SecureStore.deleteItemAsync("refreshToken");
     await SecureStore.deleteItemAsync("token");
+
     setEmployee(null);
   };
 
   const loadUser = async () => {
     try {
-      const token = await SecureStore.getItemAsync("token");
+      const accessToken = await SecureStore.getItemAsync("accessToken");
 
-      if (!token) {
+      if (!accessToken) {
         setLoading(false);
         return;
       }
@@ -37,6 +50,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.get("/auth/me");
       setEmployee(response.data);
     } catch (err) {
+      await SecureStore.deleteItemAsync("accessToken");
+      await SecureStore.deleteItemAsync("refreshToken");
       await SecureStore.deleteItemAsync("token");
       setEmployee(null);
     } finally {
