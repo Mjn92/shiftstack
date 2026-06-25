@@ -13,3 +13,6 @@ backend/node_modules
 
 mobile-app/.expo
 web-dashboard/.next
+
+logs/
+*.log
