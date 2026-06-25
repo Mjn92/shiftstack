@@ -5,6 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const slowDown = require("express-slow-down");
 
 const healthRoutes = require("./routes/healthRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -101,6 +102,15 @@ const adminLimiter = rateLimit({
   },
 });
 
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000,
+  delayAfter: 50,
+  delayMs: (hits) => hits * 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", speedLimiter);
 app.use("/api", apiLimiter);
 
 app.use("/api/auth/login", authLimiter);
