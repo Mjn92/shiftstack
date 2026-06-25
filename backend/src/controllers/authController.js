@@ -7,6 +7,10 @@ const {
   MAX_LOGIN_ATTEMPTS,
   LOCKOUT_DURATION_MINUTES,
 } = require("../config/security");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../utils/tokenService");
 
 const register = async (req, res) => {
   try {
@@ -145,14 +149,16 @@ const login = async (req, res) => {
       [employee.id],
     );
 
-    const token = jwt.sign(
-      {
-        id: employee.id,
-        email: employee.email,
-        role: employee.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" },
+    const accessToken = generateAccessToken(employee);
+    const refreshToken = generateRefreshToken(employee);
+
+    await pool.query(
+      `
+  INSERT INTO refresh_tokens
+  (employee_id, token, expires_at)
+  VALUES ($1, $2, NOW() + INTERVAL '7 days')
+  `,
+      [employee.id, refreshToken],
     );
 
     await createAuditLog({
@@ -161,9 +167,10 @@ const login = async (req, res) => {
       details: `Employee logged in: ${employee.email}`,
     });
 
-    res.json({
+    return res.json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       employee: {
         id: employee.id,
         first_name: employee.first_name,
@@ -177,6 +184,89 @@ const login = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        error: "Refresh token required",
+      });
+    }
+
+    const storedToken = await pool.query(
+      "SELECT * FROM refresh_tokens WHERE token = $1",
+      [refreshToken],
+    );
+
+    if (storedToken.rows.length === 0) {
+      return res.status(401).json({
+        error: "Invalid refresh token",
+      });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+    const employeeResult = await pool.query(
+      "SELECT id, first_name, last_name, email, role FROM employees WHERE id = $1",
+      [decoded.id],
+    );
+
+    if (employeeResult.rows.length === 0) {
+      return res.status(401).json({
+        error: "Employee not found",
+      });
+    }
+
+    const employee = employeeResult.rows[0];
+
+    const accessToken = generateAccessToken(employee);
+
+    await createAuditLog({
+      employee_id: employee.id,
+      action: "TOKEN_REFRESH",
+      details: "Access token refreshed",
+    });
+
+    res.json({
+      accessToken,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(401).json({
+      error: "Invalid refresh token",
+    });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [
+      refreshToken,
+    ]);
+
+    await createAuditLog({
+      employee_id: req.user.id,
+      action: "LOGOUT",
+      details: "Employee logged out",
+    });
+
+    res.json({
+      message: "Logout successful",
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Logout failed",
+    });
+  }
+};
+
 const me = async (req, res) => {
   try {
     const result = await pool.query(
@@ -194,5 +284,7 @@ const me = async (req, res) => {
 module.exports = {
   register,
   login,
+  refresh,
+  logout,
   me,
 };

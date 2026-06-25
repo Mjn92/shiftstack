@@ -2,7 +2,13 @@ const express = require("express");
 const { body } = require("express-validator");
 const router = express.Router();
 
-const { register, login, me } = require("../controllers/authController");
+const {
+  register,
+  login,
+  refresh,
+  logout,
+  me,
+} = require("../controllers/authController");
 
 const { protect } = require("../middleware/authMiddleware");
 const { validateRequest } = require("../middleware/validationMiddleware");
@@ -30,6 +36,10 @@ router.post(
   validateRequest,
   login,
 );
+
+router.post("/refresh", refresh);
+
+router.post("/logout", protect, logout);
 
 router.get("/me", protect, me);
 
