@@ -1,195 +1,70 @@
 # ShiftStack
 
-A full-stack employee time tracking platform built with React Native, Node.js, RabbitMQ, PostgreSQL, and Docker.
+> Modern workforce management platform built to demonstrate
+> enterprise-grade full-stack software engineering.
 
-ShiftStack was developed as a portfolio project to demonstrate modern full-stack software engineering practices, including secure authentication, mobile development, asynchronous message processing, API design, database architecture, and scalable backend systems.
+![React Native](https://img.shields.io/badge/React_Native-Expo-blue)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![Node.js](https://img.shields.io/badge/Node.js-Express-green)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)
+![RabbitMQ](https://img.shields.io/badge/Messaging-RabbitMQ-orange)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
----
-
-# Project Summary
-
-ShiftStack allows employees to securely clock in and clock out using a mobile application while managers and administrators monitor time records through a centralized system.
-
-The platform demonstrates:
-
-- React Native mobile application development
-- REST API development using Express.js
-- JWT authentication and authorization
-- RabbitMQ message queue architecture
-- PostgreSQL database design
-- Dockerized development environments
-- Secure token storage using Expo SecureStore
-- Role-based access control
-- Asynchronous backend processing
-
----
-
-# Key Highlights
-
-- Full-stack employee time tracking application
-- React Native mobile application
-- JWT authentication and protected API routes
-- RabbitMQ message-driven architecture
-- PostgreSQL relational database
-- Dockerized infrastructure
-- Secure mobile token storage
-- Role-based authorization system
-- Real-time clock-in and clock-out workflow
-
----
-
-# Skills Demonstrated
-
-### Frontend
-
-- React Native
-- Expo
-- React Navigation
-- Axios
-- Context API
-
-### Backend
-
-- Node.js
-- Express.js
-- REST APIs
-- Authentication Systems
-- Middleware Design
-
-### Database
-
-- PostgreSQL
-- Relational Database Design
-- SQL Queries
-- Data Validation
-
-### Architecture
-
-- RabbitMQ
-- Message Queues
-- Worker Services
-- Asynchronous Processing
-- Decoupled System Design
-
-### DevOps
-
-- Docker
-- Docker Compose
-- Git
-- GitHub
-- Postman
-
----
-
-# System Architecture
-
-```text
-Mobile App / Web Dashboard
-          |
-          | HTTPS Requests
-          v
-Backend API Server
-          |
-          | Publishes Messages
-          v
-RabbitMQ Message Broker
-          |
-          | Consumes Jobs
-          v
-Worker Services
-          |
-          | SQL Queries
-          v
-PostgreSQL Database
-```
-
----
-
-# RabbitMQ Message Queue Architecture
-
-One of the primary goals of ShiftStack is to demonstrate scalable backend architecture.
-
-Rather than allowing API requests to directly update the database, requests are published to RabbitMQ queues and processed asynchronously by worker services.
-
-Benefits include:
-
-- Separation of concerns
-- Improved scalability
-- Reduced API workload
-- Better fault tolerance
-- Easier future expansion
-- Support for background processing
-
-Current workflow:
-
-```text
-Employee Request
-       |
-       v
-API Server
-       |
-       v
-RabbitMQ Queue
-       |
-       v
-Worker Service
-       |
-       v
-PostgreSQL Database
-```
+ShiftStack is a full-stack employee time tracking and workforce
+management application featuring a React Native mobile app, Next.js
+administrative dashboard, Express.js backend, RabbitMQ messaging, and
+PostgreSQL. It demonstrates secure authentication, role-based access
+control, asynchronous processing, reporting, audit logging, Dockerized
+development, and cloud deployment.
 
 ---
 
 # Features
 
-## Employee Features
+## Employee
 
-- Secure authentication
+- Secure login
 - Clock in / clock out
-- View current shift status
-- View personal time history
-- Mobile application access
-- Secure JWT session management
+- Live shift status
+- Time history
+- JWT authentication
+- Mobile experience
 
-## Manager Features
+## Manager
 
-- View employee records
-- Filter employee time entries
-- Review weekly reports
-- Approve timesheets
+- View employee time entries
+- Weekly reports
+- Date filtering
+- CSV exports
+- Employee oversight
 
-## Administrator Features
+## Administrator
 
 - Employee management
-- Role-based access control
-- Audit log monitoring
+- Manager/Admin management (planned)
+- Audit logs
+- Reports
+- Role management
 - System administration
 
 ---
 
-# Screenshots
+# Architecture
 
-## Mobile Login Screen
-
-<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/58a9a9fb-3c25-41d3-bc60-fbe6dd730918" />
-
-## Employee Dashboard
-
-<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/8dbfb4cd-4741-44fb-ab57-b9d49248c511" />
-
-## Clock In / Clock Out Screen
-
-<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/12f7fd78-ac94-4b14-9077-0715eafea9c5" />
-
-<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/74b2aa09-123c-4e15-a14a-31d4a7ddc6ee" />
-
-## Time History Screen
-
-<img width="200" height="400" alt="image" src="https://github.com/user-attachments/assets/576e60bf-b119-4be2-9110-e58159b80922" />
-
-## RabbitMQ Dashboard
-
-<img width="500" height="1000" alt="image" src="image.png" />
+```text
+React Native App        Next.js Dashboard
+        │                     │
+        └────────────┬────────┘
+                     │ HTTPS
+              Express.js API
+                     │
+         ┌───────────┴────────────┐
+         │                        │
+     RabbitMQ                 PostgreSQL
+         │
+         ▼
+   Background Workers
+```
 
 ---
 
@@ -199,8 +74,9 @@ PostgreSQL Database
 
 - React Native
 - Expo
-- React
 - Next.js
+- Tailwind CSS
+- Axios
 
 ## Backend
 
@@ -208,348 +84,136 @@ PostgreSQL Database
 - Express.js
 - RabbitMQ
 - PostgreSQL
+- JWT
+- bcrypt
 
-## Infrastructure
+## DevOps
 
 - Docker
 - Docker Compose
-
-## Development Tools
-
-- Git
-- GitHub
-- Postman
-- pgAdmin
+- Render
+- Vercel
+- Supabase
+- CloudAMQP
 
 ---
 
-# Development Progress
+# Security
 
-# Frontend Progress
-
-## Mobile App
-
-### Completed Features
-
-#### Day 6
-
-- Login screen created
-- Dashboard screen created
-- Clock screen created
-- Time history screen created
-- Navigation stack configured
-- Auth context connected
-- Secure token storage added
-- API helper configured
-- Backend integration completed
-
-### Mobile Screens
-
-- Login Screen
-- Dashboard Screen
-- Clock In / Clock Out Screen
-- Time History Screen
-
-### Mobile Technologies
-
-- React Native
-- Expo
-- React Navigation
-- Axios
-- Expo SecureStore
-
-#### Day 7
-
-- Mobile API networking issues resolved
-- Authentication flow testing completed
-- Axios service configuration improved
-- Environment-based API configuration added
-- Backend connectivity debugging completed
-- Login error handling improved
-- Session persistence verified
-- Cross-device mobile testing completed
-
-#### Day 9
-
-- Reports page created
-- Weekly reports table added
-- Date range filters added
-- CSV export button added
-
-### Planned Web Dashboard Screens
-
-- Employee Login
-- Manager Dashboard
-- Employee Management
-
-# Backend Progress
-
-## Completed Features
-
-### Day 1
-
-- Project planning
-- Architecture design
-- Database planning
-
-### Day 2
-
-- Express server configured
-- PostgreSQL database connection established
-- Dockerized PostgreSQL instance running
-- RabbitMQ service configured
-- pgAdmin service configured
-- API route system created
-- Health endpoint operational
-- Employee API endpoint operational
-- SQL schema initialized
-
-### Day 3
-
-- User registration system
-- Login system
-- Password hashing
-- JWT token generation
-- Authentication middleware
-- Protected routes
+- JWT access & refresh tokens
+- bcrypt password hashing
+- Helmet security headers
+- Express Rate Limit
+- Express Slow Down
+- Express Validator
 - Role-based authorization
-- Current user endpoint
+- Audit logging
+- Environment variable management
 
-### Day 4
+---
 
-- Clock-in endpoint implemented
-- Clock-out endpoint implemented
-- Time tracking controller created
-- Time routes created
-- Shift status endpoint implemented
-- Employee time history endpoint implemented
-- Double clock-in prevention implemented
-- Automatic worked time calculations added
-- JWT protection added to time tracking routes
+# Current Functionality
 
-### Day 5
+- Authentication
+- Clock In / Clock Out
+- RabbitMQ worker processing
+- Employee dashboard
+- Admin dashboard
+- Reports
+- CSV export
+- Audit logging
+- Docker development
+- Render deployment
+- Vercel deployment
+- Supabase integration
 
-- RabbitMQ connection service implemented
-- Queue publishing service created
-- Clock worker service implemented
-- Clock-in queue integrated
-- Clock-out queue integrated
-- API server publishing messages to RabbitMQ
-- Worker consuming queue messages
-- PostgreSQL updates performed by worker
-- Queue monitoring configured
-- Message-driven architecture established
+---
 
-### Day 6
+# Project Structure
 
-- React Native mobile application initialized
-- Navigation system implemented
-- Authentication context implemented
-- Secure token storage implemented
-- Login screen connected to backend
-- Dashboard screen created
-- Clock tracking screen created
-- Time history screen created
-- Mobile application connected to API
-
-### Day 7
-
-- Mobile API networking issues resolved
-- Backend connection troubleshooting completed
-- Axios API service improved
-- Environment-based API configuration added
-- Android emulator networking configured
-- Backend timeout handling improved
-- Authentication request debugging added
-- Login error handling improved
-- Backend health testing endpoints added
-- API request logging implemented
-- Cross-device mobile testing completed
-- Mobile authentication flow stabilized
-
-### Day 8
-
-- Security middleware installed
-- Helmet configured
-- Login rate limiting configured
-- Request validation middleware implemented
-- Auth route validation added
-- Audit log service implemented
-- Auth events added to audit logs
-- Clock events added to audit logs
-- Admin audit log endpoint implemented
-
-### Day 9
-
-- Report controller implemented
-- Report routes implemented
-- Weekly report endpoint created
-- Weekly totals calculated from time entries
-- Employee and date filtering added
-- CSV export implemented
-- Manager/admin report access protected
-
-## Working Endpoints
-
-```http
-GET  /api/health
-
-POST /api/auth/register
-POST /api/auth/login
-GET  /api/auth/me
-
-GET  /api/admin/employees
-
-POST /api/time/clock-in
-POST /api/time/clock-out
-GET  /api/time/status
-GET  /api/time/my-entries
-
-GET /api/admin/audit-logs
-
-GET /api/reports/weekly
-GET /api/reports/weekly/export
+```text
+shiftstack/
+├── backend/
+├── mobile-app/
+├── web-dashboard/
+├── docs/
+├── docker-compose.yml
+└── README.md
 ```
 
 ---
 
 # Installation
 
-## Clone Repository
-
 ```bash
-git clone https://github.com/YOUR_USERNAME/shiftstack.git
+git clone https://github.com/Mjn92/shiftstack.git
 cd shiftstack
 ```
 
-## Install Dependencies
-
-### Mobile App
+Install dependencies:
 
 ```bash
-cd mobile-app
-npm install
+cd backend && npm install
+cd ../web-dashboard && npm install
+cd ../mobile-app && npm install
 ```
 
-### Web Dashboard
-
-```bash
-cd ../web-dashboard
-npm install
-```
-
-### Backend
-
-```bash
-cd ../backend
-npm install
-```
-
----
-
-# Start Docker Services
-
-From project root:
+Run Docker:
 
 ```bash
 docker compose up -d
 ```
 
-Services included:
-
-- PostgreSQL
-- RabbitMQ
-- pgAdmin
-
----
-
-# Run Applications
-
-## Backend
+Run backend:
 
 ```bash
 cd backend
 npm run dev
 ```
 
-Runs on:
-
-```text
-http://localhost:5000
-```
-
-## RabbitMQ Worker
-
-```bash
-cd backend
-npm run worker:clock
-```
-
-## Web Dashboard
+Run dashboard:
 
 ```bash
 cd web-dashboard
 npm run dev
 ```
 
-Runs on:
-
-```text
-http://localhost:3000
-```
-
-## Mobile App
+Run mobile:
 
 ```bash
 cd mobile-app
 npm start
 ```
 
-Scan QR code with Expo Go.
-
 ---
 
 # Environment Variables
 
-Create `.env` inside backend folder:
-
 ```env
-PORT=5000
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=admin
-DB_PASSWORD=password
-DB_NAME=shiftstack
-
-RABBITMQ_URL=amqp://localhost
-
-JWT_SECRET=supersecretkey
+DATABASE_URL=
+JWT_SECRET=
+JWT_REFRESH_SECRET=
+JWT_EXPIRES_IN=1h
+JWT_REFRESH_EXPIRES_IN=7d
+RABBITMQ_URL=
+NODE_ENV=development
 ```
 
 ---
 
-# API Documentation
+# API
 
-# API Routes
-
-## Current Routes
-
-### Health Check
-
-```http
-GET /api/health
-```
-
-### Authentication
+## Authentication
 
 ```http
 POST /api/auth/register
 POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
 GET  /api/auth/me
 ```
 
-### Time Tracking
+## Time
 
 ```http
 POST /api/time/clock-in
@@ -558,59 +222,65 @@ GET  /api/time/status
 GET  /api/time/my-entries
 ```
 
-### Admin
+## Admin
 
 ```http
 GET /api/admin/employees
 GET /api/admin/audit-logs
+```
+
+## Reports
+
+```http
 GET /api/reports/weekly
 GET /api/reports/weekly/export
 ```
 
 ---
 
-# Security Features
+# Deployment
 
-## Current
-
-- Environment variable configuration
-- Backend/server separation
-- PostgreSQL database isolation
-- Structured API architecture
-- Password hashing with bcrypt
-- JWT authentication
-- Protected routes
-- Role-based access control
-- Token validation
-- Message queue isolation
-- Worker-based database processing
-- Decoupled API/database architecture
-- Helmet HTTP security headers
-- Login rate limiting
-- Express Validator request validation
-- Audit logging service
-- Failed login tracking
-- Admin-only audit log access
-
-## Planned
-
-- Session expiration table integration
-- Refresh tokens
-- Secure API validation
-- Multi-factor authentication
-- Account lockout protection
+Component Service
 
 ---
 
-# Future Enhancements
+Frontend Vercel
+Backend Render
+Database Supabase PostgreSQL
+Message Broker CloudAMQP
+Mobile Expo
 
-- CSV exports
-- GPS clock-in verification
-- QR code clock-in
+---
+
+# Roadmap
+
+- User management
+- Employee editing
+- Manager permissions
+- Scheduling
+- PTO requests
+- GPS verification
 - Push notifications
 - Payroll integration
-- Analytics dashboards
 - Multi-company support
+- Analytics dashboard
+
+---
+
+# Why This Project?
+
+ShiftStack demonstrates:
+
+- Enterprise architecture
+- Secure authentication
+- Mobile development
+- REST APIs
+- Asynchronous messaging
+- SQL database design
+- Cloud deployment
+- Docker
+- CI/CD readiness
+- Scalable application design
 
 ---
 
