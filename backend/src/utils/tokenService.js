@@ -9,24 +9,11 @@ const generateAccessToken = (employee) => {
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRES,
-    },
-  );
-};
-
-const generateRefreshToken = (employee) => {
-  return jwt.sign(
-    {
-      id: employee.id,
-    },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRES,
+      expiresIn: process.env.JWT_EXPIRES_IN || "1h",
     },
   );
 };
 
 module.exports = {
   generateAccessToken,
-  generateRefreshToken,
 };
