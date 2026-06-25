@@ -26,6 +26,7 @@ export default function LoginPage() {
       }
 
       router.push("/dashboard");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Invalid email or password.");
     }
