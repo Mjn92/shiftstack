@@ -19,6 +19,8 @@ const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 const logDirectory = path.join(__dirname, "../logs");
 
 if (!fs.existsSync(logDirectory)) {
