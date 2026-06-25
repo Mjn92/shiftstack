@@ -190,52 +190,76 @@ const refresh = async (req, res) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      return res.status(400).json({
-        error: "Refresh token required",
-      });
+      return res.status(400).json({ error: "Refresh token required" });
     }
 
     const storedToken = await pool.query(
-      "SELECT * FROM refresh_tokens WHERE token = $1",
+      `
+      SELECT *
+      FROM refresh_tokens
+      WHERE token = $1
+        AND expires_at > NOW()
+      `,
       [refreshToken],
     );
 
     if (storedToken.rows.length === 0) {
       return res.status(401).json({
-        error: "Invalid refresh token",
+        error: "Invalid or expired refresh token",
       });
     }
 
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
     const employeeResult = await pool.query(
-      "SELECT id, first_name, last_name, email, role FROM employees WHERE id = $1",
+      `
+      SELECT id, first_name, last_name, email, role
+      FROM employees
+      WHERE id = $1
+      `,
       [decoded.id],
     );
 
     if (employeeResult.rows.length === 0) {
-      return res.status(401).json({
-        error: "Employee not found",
-      });
+      return res.status(401).json({ error: "Employee not found" });
     }
 
     const employee = employeeResult.rows[0];
 
     const accessToken = generateAccessToken(employee);
+    const newRefreshToken = generateRefreshToken(employee);
+
+    await pool.query(
+      `
+      DELETE FROM refresh_tokens
+      WHERE token = $1
+      `,
+      [refreshToken],
+    );
+
+    await pool.query(
+      `
+      INSERT INTO refresh_tokens
+      (employee_id, token, expires_at)
+      VALUES ($1, $2, NOW() + INTERVAL '7 days')
+      `,
+      [employee.id, newRefreshToken],
+    );
 
     await createAuditLog({
       employee_id: employee.id,
-      action: "TOKEN_REFRESH",
-      details: "Access token refreshed",
+      action: "TOKEN_ROTATED",
+      details: "Refresh token rotated",
     });
 
-    res.json({
+    return res.json({
       accessToken,
+      refreshToken: newRefreshToken,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Refresh error:", err);
 
-    res.status(401).json({
+    return res.status(401).json({
       error: "Invalid refresh token",
     });
   }
