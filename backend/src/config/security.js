@@ -1,0 +1,4 @@
+module.exports = {
+  MAX_LOGIN_ATTEMPTS: 5,
+  LOCKOUT_DURATION_MINUTES: 15,
+};

@@ -3,6 +3,10 @@ const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 
 const { createAuditLog } = require("../services/auditLogService");
+const {
+  MAX_LOGIN_ATTEMPTS,
+  LOCKOUT_DURATION_MINUTES,
+} = require("../config/security");
 
 const register = async (req, res) => {
   try {
@@ -48,7 +52,6 @@ const register = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -70,20 +73,77 @@ const login = async (req, res) => {
 
     const employee = result.rows[0];
 
+    const now = new Date();
+
+    if (
+      employee.account_locked_until &&
+      new Date(employee.account_locked_until) > now
+    ) {
+      return res.status(423).json({
+        error: "Account temporarily locked. Please try again later.",
+      });
+    }
+
     const passwordMatch = await bcrypt.compare(
       password,
       employee.password_hash,
     );
 
     if (!passwordMatch) {
+      const failedAttempts = Number(employee.failed_login_attempts || 0) + 1;
+
+      let lockedUntil = null;
+
+      if (failedAttempts >= MAX_LOGIN_ATTEMPTS) {
+        lockedUntil = new Date(
+          Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000,
+        );
+      }
+
+      await pool.query(
+        `
+        UPDATE employees
+        SET
+          failed_login_attempts = $1,
+          last_failed_login = NOW(),
+          account_locked_until = $2
+        WHERE id = $3
+        `,
+        [failedAttempts, lockedUntil, employee.id],
+      );
+
       await createAuditLog({
         employee_id: employee.id,
         action: "FAILED_LOGIN",
         details: `Failed password attempt for email: ${email}`,
       });
 
+      if (lockedUntil) {
+        await createAuditLog({
+          employee_id: employee.id,
+          action: "ACCOUNT_LOCKED",
+          details: `Account locked after ${failedAttempts} failed login attempts`,
+        });
+
+        return res.status(423).json({
+          error: "Account temporarily locked. Please try again later.",
+        });
+      }
+
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    await pool.query(
+      `
+      UPDATE employees
+      SET
+        failed_login_attempts = 0,
+        account_locked_until = NULL,
+        last_failed_login = NULL
+      WHERE id = $1
+      `,
+      [employee.id],
+    );
 
     const token = jwt.sign(
       {
@@ -117,7 +177,6 @@ const login = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-
 const me = async (req, res) => {
   try {
     const result = await pool.query(
