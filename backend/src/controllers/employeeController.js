@@ -7,7 +7,7 @@ const { AUDIT_ACTIONS } = require("../utils/auditActions");
 const getEmployees = async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, first_name, last_name, email, role FROM employees ORDER BY last_name ASC",
+      "SELECT id, first_name, last_name, email, role, active, phone, department FROM employees ORDER BY id ASC",
     );
 
     res.json(result.rows);

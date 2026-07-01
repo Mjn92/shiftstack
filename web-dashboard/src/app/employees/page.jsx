@@ -37,10 +37,7 @@ export default function EmployeesPage() {
   };
 
   const allowedRoleOptions = () => {
-    if (currentUser?.role === "admin") {
-      return ["employee", "manager", "admin"];
-    }
-
+    if (currentUser?.role === "admin") return ["employee", "manager", "admin"];
     return ["employee"];
   };
 
@@ -62,11 +59,10 @@ export default function EmployeesPage() {
     try {
       setLoading(true);
       setError("");
-
       const response = await api.get("/admin/employees");
+      console.log("Employees from API:", response.data);
       setEmployees(response.data);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
+    } catch {
       setError("Failed to load employees.");
     } finally {
       setLoading(false);
@@ -122,7 +118,6 @@ export default function EmployeesPage() {
       if (editingEmployee) {
         const payload = { ...form };
         delete payload.password;
-
         await api.put(`/admin/employees/${editingEmployee.id}`, payload);
         setMessage("Employee updated successfully.");
       } else {
@@ -175,6 +170,12 @@ export default function EmployeesPage() {
     loadEmployees();
   }, []);
 
+  const isActive = (value) => {
+    return (
+      value === true || value === "true" || value === "TRUE" || value === 1
+    );
+  };
+
   const filteredEmployees = employees.filter((emp) => {
     const searchText = `${emp.first_name || ""} ${emp.last_name || ""} ${
       emp.email || ""
@@ -184,8 +185,8 @@ export default function EmployeesPage() {
     const matchesRole = roleFilter === "all" || emp.role === roleFilter;
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active" && emp.active) ||
-      (statusFilter === "inactive" && !emp.active);
+      (statusFilter === "active" && isActive(emp.active)) ||
+      (statusFilter === "inactive" && !isActive(emp.active));
 
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -194,109 +195,58 @@ export default function EmployeesPage() {
     employees: employees.filter((emp) => emp.role === "employee").length,
     managers: employees.filter((emp) => emp.role === "manager").length,
     admins: employees.filter((emp) => emp.role === "admin").length,
-    active: employees.filter((emp) => emp.active).length,
-    inactive: employees.filter((emp) => !emp.active).length,
+    active: employees.filter((emp) => isActive(emp.active)).length,
+    inactive: employees.filter((emp) => !isActive(emp.active)).length,
   };
 
-  const RoleBadge = ({ role }) => {
-    const className =
-      role === "admin"
-        ? "bg-red-100 text-red-700 px-2 py-1 rounded font-semibold capitalize"
-        : role === "manager"
-          ? "bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-semibold capitalize"
-          : "bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold capitalize";
-
-    return <span className={className}>{role}</span>;
-  };
-
-  const StatusBadge = ({ active }) => {
-    return active ? (
-      <span className="bg-green-100 text-green-700 px-2 py-1 rounded font-semibold">
-        Active
-      </span>
-    ) : (
-      <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded font-semibold">
-        Inactive
-      </span>
-    );
+  const getRoleColor = (role) => {
+    if (role === "admin") return "#DC2626";
+    if (role === "manager") return "#D97706";
+    return "#2563EB";
   };
 
   return (
     <>
       <Navbar />
 
-      <main className="p-8">
-        <div className="flex justify-between items-center mb-6">
+      <main style={styles.page}>
+        <div style={styles.pageHeader}>
           <div>
-            <h2 className="text-3xl font-bold">User Management</h2>
-            <p className="text-gray-600">
+            <h1 style={styles.pageTitle}>User Management</h1>
+            <p style={styles.pageSubtitle}>
               Add, edit, activate, and deactivate employee accounts.
             </p>
           </div>
 
-          <button
-            onClick={openCreateForm}
-            className="bg-black text-white px-4 py-2 rounded"
-          >
+          <button onClick={openCreateForm} style={styles.primaryButton}>
             Add Employee
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="border rounded-xl p-4 bg-white">
-            <p className="text-sm text-gray-500">Employees</p>
-            <p className="text-2xl font-bold">{stats.employees}</p>
-          </div>
+        <section style={styles.statsGrid}>
+          <StatCard label="Employees" value={stats.employees} />
+          <StatCard label="Managers" value={stats.managers} />
+          <StatCard label="Admins" value={stats.admins} />
+          <StatCard label="Active" value={stats.active} />
+          <StatCard label="Inactive" value={stats.inactive} />
+        </section>
 
-          <div className="border rounded-xl p-4 bg-white">
-            <p className="text-sm text-gray-500">Managers</p>
-            <p className="text-2xl font-bold">{stats.managers}</p>
-          </div>
-
-          <div className="border rounded-xl p-4 bg-white">
-            <p className="text-sm text-gray-500">Admins</p>
-            <p className="text-2xl font-bold">{stats.admins}</p>
-          </div>
-
-          <div className="border rounded-xl p-4 bg-white">
-            <p className="text-sm text-gray-500">Active</p>
-            <p className="text-2xl font-bold">{stats.active}</p>
-          </div>
-
-          <div className="border rounded-xl p-4 bg-white">
-            <p className="text-sm text-gray-500">Inactive</p>
-            <p className="text-2xl font-bold">{stats.inactive}</p>
-          </div>
-        </div>
-
-        {message && (
-          <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-            {error}
-          </div>
-        )}
+        {message && <div style={styles.successMessage}>{message}</div>}
+        {error && <div style={styles.errorMessage}>{error}</div>}
 
         {formOpen && (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white border rounded-xl p-6 mb-8 shadow-sm"
-          >
-            <h3 className="text-xl font-bold mb-4">
+          <form onSubmit={handleSubmit} style={styles.formCard}>
+            <h2 style={styles.formTitle}>
               {editingEmployee ? "Edit Employee" : "Add Employee"}
-            </h3>
+            </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div style={styles.formGrid}>
               <input
                 name="first_name"
                 value={form.first_name}
                 onChange={handleChange}
                 placeholder="First Name"
-                className="border p-3 rounded"
+                style={styles.input}
                 required
               />
 
@@ -305,7 +255,7 @@ export default function EmployeesPage() {
                 value={form.last_name}
                 onChange={handleChange}
                 placeholder="Last Name"
-                className="border p-3 rounded"
+                style={styles.input}
                 required
               />
 
@@ -315,7 +265,7 @@ export default function EmployeesPage() {
                 onChange={handleChange}
                 placeholder="Email"
                 type="email"
-                className="border p-3 rounded"
+                style={styles.input}
                 required
               />
 
@@ -326,7 +276,7 @@ export default function EmployeesPage() {
                   onChange={handleChange}
                   placeholder="Temporary Password"
                   type="password"
-                  className="border p-3 rounded"
+                  style={styles.input}
                   required
                 />
               )}
@@ -335,7 +285,7 @@ export default function EmployeesPage() {
                 name="role"
                 value={form.role}
                 onChange={handleChange}
-                className="border p-3 rounded"
+                style={styles.input}
               >
                 {allowedRoleOptions().map((role) => (
                   <option key={role} value={role}>
@@ -349,7 +299,7 @@ export default function EmployeesPage() {
                 value={form.phone}
                 onChange={handleChange}
                 placeholder="Phone"
-                className="border p-3 rounded"
+                style={styles.input}
               />
 
               <input
@@ -357,15 +307,12 @@ export default function EmployeesPage() {
                 value={form.department}
                 onChange={handleChange}
                 placeholder="Department"
-                className="border p-3 rounded"
+                style={styles.input}
               />
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                disabled={saving}
-                className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
-              >
+            <div style={styles.formActions}>
+              <button disabled={saving} style={styles.primaryButton}>
                 {saving
                   ? "Saving..."
                   : editingEmployee
@@ -377,7 +324,7 @@ export default function EmployeesPage() {
                 type="button"
                 onClick={resetForm}
                 disabled={saving}
-                className="bg-gray-300 text-black px-4 py-2 rounded disabled:opacity-50"
+                style={styles.secondaryButton}
               >
                 Cancel
               </button>
@@ -385,127 +332,372 @@ export default function EmployeesPage() {
           </form>
         )}
 
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <input
-            type="text"
-            placeholder="Search by name, email, or department..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border p-3 rounded w-full md:w-96"
-          />
+        <section style={styles.tableCard}>
+          <div style={styles.filters}>
+            <input
+              type="text"
+              placeholder="Search by name, email, or department..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={styles.searchInput}
+            />
 
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="border p-3 rounded"
-          >
-            <option value="all">All Roles</option>
-            <option value="employee">Employees</option>
-            <option value="manager">Managers</option>
-            <option value="admin">Admins</option>
-          </select>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={styles.filterSelect}
+            >
+              <option value="all">All Roles</option>
+              <option value="employee">Employees</option>
+              <option value="manager">Managers</option>
+              <option value="admin">Admins</option>
+            </select>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border p-3 rounded"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-
-        {loading ? (
-          <div className="border rounded-xl p-6 bg-white">
-            Loading employees...
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={styles.filterSelect}
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border bg-white">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border p-3 text-left">Name</th>
-                  <th className="border p-3 text-left">Email</th>
-                  <th className="border p-3 text-left">Role</th>
-                  <th className="border p-3 text-left">Department</th>
-                  <th className="border p-3 text-left">Phone</th>
-                  <th className="border p-3 text-left">Status</th>
-                  <th className="border p-3 text-left">Actions</th>
+
+          {loading ? (
+            <div style={styles.loadingState}>Loading employees...</div>
+          ) : (
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.tableHeaderRow}>
+                  <th style={styles.headerCell}>Name</th>
+                  <th style={styles.headerCell}>Email</th>
+                  <th style={styles.headerCell}>Role</th>
+                  <th style={styles.headerCell}>Department</th>
+                  <th style={styles.headerCell}>Phone</th>
+                  <th style={styles.headerCell}>Status</th>
+                  <th style={styles.headerCell}>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredEmployees.map((emp) => (
-                  <tr key={emp.id}>
-                    <td className="border p-3">
-                      {emp.first_name} {emp.last_name}
-                    </td>
-
-                    <td className="border p-3">{emp.email}</td>
-
-                    <td className="border p-3">
-                      <RoleBadge role={emp.role} />
-                    </td>
-
-                    <td className="border p-3">{emp.department || "-"}</td>
-
-                    <td className="border p-3">{emp.phone || "-"}</td>
-
-                    <td className="border p-3">
-                      <StatusBadge active={emp.active} />
-                    </td>
-
-                    <td className="border p-3">
-                      {emp.id === currentUser?.id ? (
-                        <span className="text-gray-500 font-semibold">
-                          Current User
-                        </span>
-                      ) : (
-                        <div className="flex gap-2">
-                          {canEditRole(emp.role) && (
-                            <button
-                              onClick={() => openEditForm(emp)}
-                              className="bg-blue-600 text-white px-3 py-1 rounded"
-                            >
-                              Edit
-                            </button>
-                          )}
-
-                          {canEditRole(emp.role) &&
-                            (emp.active ? (
-                              <button
-                                onClick={() => handleDeactivate(emp)}
-                                className="bg-red-600 text-white px-3 py-1 rounded"
-                              >
-                                Deactivate
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleActivate(emp.id)}
-                                className="bg-green-600 text-white px-3 py-1 rounded"
-                              >
-                                Activate
-                              </button>
-                            ))}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredEmployees.length === 0 && (
+                {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td className="border p-3 text-center" colSpan="7">
+                    <td style={styles.emptyState} colSpan="7">
                       No employees found.
                     </td>
                   </tr>
+                ) : (
+                  filteredEmployees.map((emp, index) => (
+                    <tr
+                      key={emp.id}
+                      style={{
+                        backgroundColor:
+                          index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
+                      }}
+                    >
+                      <td style={styles.cell}>
+                        {emp.first_name} {emp.last_name}
+                      </td>
+
+                      <td style={styles.cell}>{emp.email}</td>
+
+                      <td style={styles.cell}>
+                        <span
+                          style={{
+                            ...styles.roleBadge,
+                            backgroundColor: getRoleColor(emp.role),
+                          }}
+                        >
+                          {emp.role}
+                        </span>
+                      </td>
+
+                      <td style={styles.cell}>{emp.department || "-"}</td>
+                      <td style={styles.cell}>{emp.phone || "-"}</td>
+
+                      <td style={styles.cell}>
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            backgroundColor: isActive(emp.active)
+                              ? "#16A34A"
+                              : "#6B7280",
+                          }}
+                        >
+                          {isActive(emp.active) ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+
+                      <td style={styles.cell}>
+                        {emp.id === currentUser?.id ? (
+                          <span style={styles.currentUserLabel}>
+                            Current User
+                          </span>
+                        ) : (
+                          <div style={styles.actionGroup}>
+                            {canEditRole(emp.role) && (
+                              <button
+                                onClick={() => openEditForm(emp)}
+                                style={styles.editButton}
+                              >
+                                Edit
+                              </button>
+                            )}
+
+                            {canEditRole(emp.role) &&
+                              (isActive(emp.active) ? (
+                                <button
+                                  onClick={() => handleDeactivate(emp)}
+                                  style={styles.deactivateButton}
+                                >
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleActivate(emp.id)}
+                                  style={styles.activateButton}
+                                >
+                                  Activate
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </section>
       </main>
     </>
   );
 }
+
+function StatCard({ label, value }) {
+  return (
+    <div style={styles.statCard}>
+      <p style={styles.statLabel}>{label}</p>
+      <p style={styles.statValue}>{value}</p>
+    </div>
+  );
+}
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    backgroundColor: "#EAF3FF",
+    padding: "32px",
+  },
+  pageHeader: {
+    marginBottom: "24px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "16px",
+  },
+  pageTitle: {
+    color: "#0A4DA2",
+    fontSize: "36px",
+    fontWeight: "bold",
+    marginBottom: "8px",
+  },
+  pageSubtitle: {
+    color: "#6B7280",
+    fontSize: "16px",
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gap: "16px",
+    marginBottom: "24px",
+  },
+  statCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "18px",
+    padding: "20px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    border: "1px solid #DCEBFF",
+  },
+  statLabel: {
+    color: "#6B7280",
+    fontSize: "14px",
+    marginBottom: "8px",
+  },
+  statValue: {
+    color: "#0A4DA2",
+    fontSize: "32px",
+    fontWeight: "bold",
+  },
+  tableCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "20px",
+    overflow: "hidden",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    border: "1px solid #DCEBFF",
+  },
+  filters: {
+    padding: "20px",
+    display: "flex",
+    gap: "12px",
+    borderBottom: "1px solid #E5E7EB",
+    flexWrap: "wrap",
+  },
+  searchInput: {
+    padding: "12px",
+    borderRadius: "10px",
+    border: "1px solid #CBD5E1",
+    minWidth: "320px",
+  },
+  filterSelect: {
+    padding: "12px",
+    borderRadius: "10px",
+    border: "1px solid #CBD5E1",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+  tableHeaderRow: {
+    backgroundColor: "#0A4DA2",
+    color: "#FFFFFF",
+  },
+  headerCell: {
+    padding: "16px",
+    textAlign: "left",
+    fontWeight: "bold",
+  },
+  cell: {
+    padding: "16px",
+    borderBottom: "1px solid #E5E7EB",
+    color: "#111827",
+  },
+  roleBadge: {
+    color: "#FFFFFF",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    display: "inline-block",
+  },
+  statusBadge: {
+    color: "#FFFFFF",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    display: "inline-block",
+  },
+  primaryButton: {
+    backgroundColor: "#0A4DA2",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  secondaryButton: {
+    backgroundColor: "#E5E7EB",
+    color: "#111827",
+    border: "none",
+    borderRadius: "10px",
+    padding: "12px 18px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  editButton: {
+    backgroundColor: "#2563EB",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  deactivateButton: {
+    backgroundColor: "#DC2626",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  activateButton: {
+    backgroundColor: "#16A34A",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  actionGroup: {
+    display: "flex",
+    gap: "8px",
+  },
+  currentUserLabel: {
+    color: "#6B7280",
+    fontWeight: "bold",
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    border: "1px solid #DCEBFF",
+    marginBottom: "24px",
+  },
+  formTitle: {
+    color: "#0A4DA2",
+    fontSize: "24px",
+    fontWeight: "bold",
+    marginBottom: "16px",
+  },
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "16px",
+  },
+  input: {
+    padding: "12px",
+    borderRadius: "10px",
+    border: "1px solid #CBD5E1",
+  },
+  formActions: {
+    display: "flex",
+    gap: "12px",
+    marginTop: "20px",
+  },
+  successMessage: {
+    backgroundColor: "#DCFCE7",
+    color: "#166534",
+    border: "1px solid #BBF7D0",
+    padding: "14px",
+    borderRadius: "12px",
+    marginBottom: "16px",
+  },
+  errorMessage: {
+    backgroundColor: "#FEE2E2",
+    color: "#991B1B",
+    border: "1px solid #FECACA",
+    padding: "14px",
+    borderRadius: "12px",
+    marginBottom: "16px",
+  },
+  loadingState: {
+    padding: "40px",
+    textAlign: "center",
+    color: "#6B7280",
+  },
+  emptyState: {
+    padding: "40px",
+    textAlign: "center",
+    color: "#6B7280",
+  },
+};
