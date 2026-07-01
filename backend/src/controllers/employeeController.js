@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const pool = require("../config/db");
 const { canManageUser } = require("../utils/permissions");
 const { createAuditLog } = require("../services/auditLogService");
+const { AUDIT_ACTIONS } = require("../utils/auditActions");
 
 const getEmployees = async (req, res) => {
   try {
@@ -70,9 +71,83 @@ const getAuditLogs = async (req, res) => {
 };
 
 const createEmployee = async (req, res) => {
-  res.status(501).json({
-    message: "Create employee endpoint planned for Day 14",
-  });
+  try {
+    const currentUser = req.user;
+
+    const { first_name, last_name, email, password, role, phone, department } =
+      req.body;
+
+    if (!first_name || !last_name || !email || !password) {
+      return res.status(400).json({
+        error: "First name, last name, email, and password are required",
+      });
+    }
+
+    const newRole = role || "employee";
+
+    const allowedRoles = ["employee", "manager", "admin"];
+
+    if (!allowedRoles.includes(newRole)) {
+      return res.status(400).json({
+        error: "Invalid role",
+      });
+    }
+
+    if (!canManageUser(currentUser.role, newRole, "canCreate")) {
+      return res.status(403).json({
+        error: "You do not have permission to create this user role",
+      });
+    }
+
+    const existingEmployee = await pool.query(
+      "SELECT id FROM employees WHERE LOWER(email) = LOWER($1)",
+      [email],
+    );
+
+    if (existingEmployee.rows.length > 0) {
+      return res.status(409).json({
+        error: "An employee with this email already exists",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      `INSERT INTO employees 
+        (first_name, last_name, email, password_hash, role, phone, department, active, updated_by)
+       VALUES 
+        ($1, $2, LOWER($3), $4, $5, $6, $7, TRUE, $8)
+       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      [
+        first_name,
+        last_name,
+        email,
+        passwordHash,
+        newRole,
+        phone || null,
+        department || null,
+        currentUser.id,
+      ],
+    );
+
+    const employee = result.rows[0];
+
+    await createAuditLog({
+      employee_id: currentUser.id,
+      action: AUDIT_ACTIONS.CREATE_EMPLOYEE,
+      details: `Created ${employee.role} account for ${employee.email}`,
+    });
+
+    res.status(201).json({
+      message: "Employee created successfully",
+      employee,
+    });
+  } catch (err) {
+    console.error("Create employee error:", err);
+    res.status(500).json({
+      error: "Server error",
+    });
+  }
 };
 
 const updateEmployee = async (req, res) => {
