@@ -264,15 +264,131 @@ const updateEmployee = async (req, res) => {
 };
 
 const activateEmployee = async (req, res) => {
-  res.status(501).json({
-    message: "Activate employee endpoint planned for Day 14",
-  });
+  try {
+    const currentUser = req.user;
+    const employeeId = req.params.id;
+
+    const existingEmployee = await pool.query(
+      "SELECT id, email, role, active FROM employees WHERE id = $1",
+      [employeeId],
+    );
+
+    if (existingEmployee.rows.length === 0) {
+      return res.status(404).json({
+        error: "Employee not found",
+      });
+    }
+
+    const targetEmployee = existingEmployee.rows[0];
+
+    if (!canManageUser(currentUser.role, targetEmployee.role, "canActivate")) {
+      return res.status(403).json({
+        error: "You do not have permission to activate this user",
+      });
+    }
+
+    if (targetEmployee.active === true) {
+      return res.status(400).json({
+        error: "Employee is already active",
+      });
+    }
+
+    const result = await pool.query(
+      `UPDATE employees
+       SET active = TRUE,
+           updated_at = CURRENT_TIMESTAMP,
+           updated_by = $1
+       WHERE id = $2
+       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      [currentUser.id, employeeId],
+    );
+
+    const employee = result.rows[0];
+
+    await createAuditLog({
+      employee_id: currentUser.id,
+      action: AUDIT_ACTIONS.ACTIVATE_EMPLOYEE,
+      details: `Activated ${employee.role} account for ${employee.email}`,
+    });
+
+    res.json({
+      message: "Employee activated successfully",
+      employee,
+    });
+  } catch (err) {
+    console.error("Activate employee error:", err);
+    res.status(500).json({
+      error: "Server error",
+    });
+  }
 };
 
 const deactivateEmployee = async (req, res) => {
-  res.status(501).json({
-    message: "Deactivate employee endpoint planned for Day 14",
-  });
+  try {
+    const currentUser = req.user;
+    const employeeId = req.params.id;
+
+    const existingEmployee = await pool.query(
+      "SELECT id, email, role, active FROM employees WHERE id = $1",
+      [employeeId],
+    );
+
+    if (existingEmployee.rows.length === 0) {
+      return res.status(404).json({
+        error: "Employee not found",
+      });
+    }
+
+    const targetEmployee = existingEmployee.rows[0];
+
+    if (
+      !canManageUser(currentUser.role, targetEmployee.role, "canDeactivate")
+    ) {
+      return res.status(403).json({
+        error: "You do not have permission to deactivate this user",
+      });
+    }
+
+    if (currentUser.id === Number(employeeId)) {
+      return res.status(400).json({
+        error: "You cannot deactivate your own account",
+      });
+    }
+
+    if (targetEmployee.active === false) {
+      return res.status(400).json({
+        error: "Employee is already inactive",
+      });
+    }
+
+    const result = await pool.query(
+      `UPDATE employees
+       SET active = FALSE,
+           updated_at = CURRENT_TIMESTAMP,
+           updated_by = $1
+       WHERE id = $2
+       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      [currentUser.id, employeeId],
+    );
+
+    const employee = result.rows[0];
+
+    await createAuditLog({
+      employee_id: currentUser.id,
+      action: AUDIT_ACTIONS.DEACTIVATE_EMPLOYEE,
+      details: `Deactivated ${employee.role} account for ${employee.email}`,
+    });
+
+    res.json({
+      message: "Employee deactivated successfully",
+      employee,
+    });
+  } catch (err) {
+    console.error("Deactivate employee error:", err);
+    res.status(500).json({
+      error: "Server error",
+    });
+  }
 };
 
 const getEmployeeById = async (req, res) => {
