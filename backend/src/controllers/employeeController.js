@@ -151,9 +151,116 @@ const createEmployee = async (req, res) => {
 };
 
 const updateEmployee = async (req, res) => {
-  res.status(501).json({
-    message: "Update employee endpoint planned for Day 14",
-  });
+  try {
+    const currentUser = req.user;
+    const employeeId = req.params.id;
+
+    const { first_name, last_name, email, role, phone, department, active } =
+      req.body;
+
+    const existingEmployee = await pool.query(
+      "SELECT id, email, role FROM employees WHERE id = $1",
+      [employeeId],
+    );
+
+    if (existingEmployee.rows.length === 0) {
+      return res.status(404).json({
+        error: "Employee not found",
+      });
+    }
+
+    const targetEmployee = existingEmployee.rows[0];
+
+    if (!canManageUser(currentUser.role, targetEmployee.role, "canEdit")) {
+      return res.status(403).json({
+        error: "You do not have permission to edit this user",
+      });
+    }
+
+    const newRole = role || targetEmployee.role;
+
+    const allowedRoles = ["employee", "manager", "admin"];
+
+    if (!allowedRoles.includes(newRole)) {
+      return res.status(400).json({
+        error: "Invalid role",
+      });
+    }
+
+    if (newRole !== targetEmployee.role) {
+      if (!canManageUser(currentUser.role, newRole, "canChangeRoleTo")) {
+        return res.status(403).json({
+          error: "You do not have permission to assign this role",
+        });
+      }
+    }
+
+    if (email) {
+      const duplicateEmail = await pool.query(
+        "SELECT id FROM employees WHERE LOWER(email) = LOWER($1) AND id != $2",
+        [email, employeeId],
+      );
+
+      if (duplicateEmail.rows.length > 0) {
+        return res.status(409).json({
+          error: "Another employee already uses this email",
+        });
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE employees
+       SET
+        first_name = COALESCE($1, first_name),
+        last_name = COALESCE($2, last_name),
+        email = COALESCE(LOWER($3), email),
+        role = COALESCE($4, role),
+        phone = COALESCE($5, phone),
+        department = COALESCE($6, department),
+        active = COALESCE($7, active),
+        updated_at = CURRENT_TIMESTAMP,
+        updated_by = $8
+       WHERE id = $9
+       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      [
+        first_name || null,
+        last_name || null,
+        email || null,
+        newRole,
+        phone || null,
+        department || null,
+        typeof active === "boolean" ? active : null,
+        currentUser.id,
+        employeeId,
+      ],
+    );
+
+    const updatedEmployee = result.rows[0];
+
+    await createAuditLog({
+      employee_id: currentUser.id,
+      action: AUDIT_ACTIONS.UPDATE_EMPLOYEE,
+      details: `Updated ${updatedEmployee.role} account for ${updatedEmployee.email}`,
+    });
+
+    if (newRole !== targetEmployee.role) {
+      await createAuditLog({
+        employee_id: currentUser.id,
+        action: AUDIT_ACTIONS.CHANGE_EMPLOYEE_ROLE,
+        details: `Changed role for ${updatedEmployee.email} from ${targetEmployee.role} to ${newRole}`,
+      });
+    }
+
+    res.json({
+      message: "Employee updated successfully",
+      employee: updatedEmployee,
+    });
+  } catch (err) {
+    console.error("Update employee error:", err);
+    res.status(500).json({
+      error: "Server error",
+    });
+  }
 };
 
 const activateEmployee = async (req, res) => {
