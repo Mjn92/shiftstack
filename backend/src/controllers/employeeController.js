@@ -1,4 +1,7 @@
+const bcrypt = require("bcrypt");
 const pool = require("../config/db");
+const { canManageUser } = require("../utils/permissions");
+const { createAuditLog } = require("../services/auditLogService");
 
 const getEmployees = async (req, res) => {
   try {
@@ -66,8 +69,43 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+const createEmployee = async (req, res) => {
+  res.status(501).json({
+    message: "Create employee endpoint planned for Day 14",
+  });
+};
+
+const updateEmployee = async (req, res) => {
+  res.status(501).json({
+    message: "Update employee endpoint planned for Day 14",
+  });
+};
+
+const activateEmployee = async (req, res) => {
+  res.status(501).json({
+    message: "Activate employee endpoint planned for Day 14",
+  });
+};
+
+const deactivateEmployee = async (req, res) => {
+  res.status(501).json({
+    message: "Deactivate employee endpoint planned for Day 14",
+  });
+};
+
+const getEmployeeById = async (req, res) => {
+  res.status(501).json({
+    message: "Get single employee endpoint planned for Day 14",
+  });
+};
+
 module.exports = {
   getEmployees,
   getTimeEntries,
   getAuditLogs,
+  createEmployee,
+  updateEmployee,
+  activateEmployee,
+  deactivateEmployee,
+  getEmployeeById,
 };
