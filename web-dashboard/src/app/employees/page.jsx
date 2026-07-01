@@ -13,6 +13,12 @@ export default function EmployeesPage() {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const [form, setForm] = useState({
     first_name: "",
@@ -54,10 +60,16 @@ export default function EmployeesPage() {
 
   const loadEmployees = async () => {
     try {
+      setLoading(true);
+      setError("");
+
       const response = await api.get("/admin/employees");
       setEmployees(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Failed to load employees.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,6 +116,7 @@ export default function EmployeesPage() {
     e.preventDefault();
     setError("");
     setMessage("");
+    setSaving(true);
 
     try {
       if (editingEmployee) {
@@ -118,21 +131,28 @@ export default function EmployeesPage() {
       }
 
       resetForm();
-      loadEmployees();
+      await loadEmployees();
     } catch (err) {
       setError(err.response?.data?.error || "Request failed.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDeactivate = async (id) => {
+  const handleDeactivate = async (emp) => {
+    if (emp.id === currentUser?.id) {
+      setError("You cannot deactivate your own account.");
+      return;
+    }
+
     if (!confirm("Are you sure you want to deactivate this account?")) return;
 
     try {
       setError("");
       setMessage("");
-      await api.patch(`/admin/employees/${id}/deactivate`);
+      await api.patch(`/admin/employees/${emp.id}/deactivate`);
       setMessage("Employee deactivated successfully.");
-      loadEmployees();
+      await loadEmployees();
     } catch (err) {
       setError(err.response?.data?.error || "Deactivate failed.");
     }
@@ -144,7 +164,7 @@ export default function EmployeesPage() {
       setMessage("");
       await api.patch(`/admin/employees/${id}/activate`);
       setMessage("Employee activated successfully.");
-      loadEmployees();
+      await loadEmployees();
     } catch (err) {
       setError(err.response?.data?.error || "Activate failed.");
     }
@@ -154,6 +174,52 @@ export default function EmployeesPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadEmployees();
   }, []);
+
+  const filteredEmployees = employees.filter((emp) => {
+    const searchText = `${emp.first_name || ""} ${emp.last_name || ""} ${
+      emp.email || ""
+    } ${emp.department || ""}`.toLowerCase();
+
+    const matchesSearch = searchText.includes(search.toLowerCase());
+    const matchesRole = roleFilter === "all" || emp.role === roleFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && emp.active) ||
+      (statusFilter === "inactive" && !emp.active);
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const stats = {
+    employees: employees.filter((emp) => emp.role === "employee").length,
+    managers: employees.filter((emp) => emp.role === "manager").length,
+    admins: employees.filter((emp) => emp.role === "admin").length,
+    active: employees.filter((emp) => emp.active).length,
+    inactive: employees.filter((emp) => !emp.active).length,
+  };
+
+  const RoleBadge = ({ role }) => {
+    const className =
+      role === "admin"
+        ? "bg-red-100 text-red-700 px-2 py-1 rounded font-semibold capitalize"
+        : role === "manager"
+          ? "bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-semibold capitalize"
+          : "bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold capitalize";
+
+    return <span className={className}>{role}</span>;
+  };
+
+  const StatusBadge = ({ active }) => {
+    return active ? (
+      <span className="bg-green-100 text-green-700 px-2 py-1 rounded font-semibold">
+        Active
+      </span>
+    ) : (
+      <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded font-semibold">
+        Inactive
+      </span>
+    );
+  };
 
   return (
     <>
@@ -174,6 +240,33 @@ export default function EmployeesPage() {
           >
             Add Employee
           </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="border rounded-xl p-4 bg-white">
+            <p className="text-sm text-gray-500">Employees</p>
+            <p className="text-2xl font-bold">{stats.employees}</p>
+          </div>
+
+          <div className="border rounded-xl p-4 bg-white">
+            <p className="text-sm text-gray-500">Managers</p>
+            <p className="text-2xl font-bold">{stats.managers}</p>
+          </div>
+
+          <div className="border rounded-xl p-4 bg-white">
+            <p className="text-sm text-gray-500">Admins</p>
+            <p className="text-2xl font-bold">{stats.admins}</p>
+          </div>
+
+          <div className="border rounded-xl p-4 bg-white">
+            <p className="text-sm text-gray-500">Active</p>
+            <p className="text-2xl font-bold">{stats.active}</p>
+          </div>
+
+          <div className="border rounded-xl p-4 bg-white">
+            <p className="text-sm text-gray-500">Inactive</p>
+            <p className="text-2xl font-bold">{stats.inactive}</p>
+          </div>
         </div>
 
         {message && (
@@ -269,14 +362,22 @@ export default function EmployeesPage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button className="bg-black text-white px-4 py-2 rounded">
-                {editingEmployee ? "Save Changes" : "Create Employee"}
+              <button
+                disabled={saving}
+                className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+              >
+                {saving
+                  ? "Saving..."
+                  : editingEmployee
+                    ? "Save Changes"
+                    : "Create Employee"}
               </button>
 
               <button
                 type="button"
                 onClick={resetForm}
-                className="bg-gray-300 text-black px-4 py-2 rounded"
+                disabled={saving}
+                className="bg-gray-300 text-black px-4 py-2 rounded disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -284,74 +385,126 @@ export default function EmployeesPage() {
           </form>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full border bg-white">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border p-3 text-left">Name</th>
-                <th className="border p-3 text-left">Email</th>
-                <th className="border p-3 text-left">Role</th>
-                <th className="border p-3 text-left">Department</th>
-                <th className="border p-3 text-left">Phone</th>
-                <th className="border p-3 text-left">Status</th>
-                <th className="border p-3 text-left">Actions</th>
-              </tr>
-            </thead>
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <input
+            type="text"
+            placeholder="Search by name, email, or department..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border p-3 rounded w-full md:w-96"
+          />
 
-            <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.id}>
-                  <td className="border p-3">
-                    {emp.first_name} {emp.last_name}
-                  </td>
-                  <td className="border p-3">{emp.email}</td>
-                  <td className="border p-3 capitalize">{emp.role}</td>
-                  <td className="border p-3">{emp.department || "-"}</td>
-                  <td className="border p-3">{emp.phone || "-"}</td>
-                  <td className="border p-3">
-                    {emp.active ? (
-                      <span className="text-green-700 font-semibold">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="text-red-700 font-semibold">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-                  <td className="border p-3">
-                    <div className="flex gap-2">
-                      {canEditRole(emp.role) && (
-                        <button
-                          onClick={() => openEditForm(emp)}
-                          className="bg-blue-600 text-white px-3 py-1 rounded"
-                        >
-                          Edit
-                        </button>
-                      )}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="border p-3 rounded"
+          >
+            <option value="all">All Roles</option>
+            <option value="employee">Employees</option>
+            <option value="manager">Managers</option>
+            <option value="admin">Admins</option>
+          </select>
 
-                      {emp.active ? (
-                        <button
-                          onClick={() => handleDeactivate(emp.id)}
-                          className="bg-red-600 text-white px-3 py-1 rounded"
-                        >
-                          Deactivate
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleActivate(emp.id)}
-                          className="bg-green-600 text-white px-3 py-1 rounded"
-                        >
-                          Activate
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border p-3 rounded"
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
+
+        {loading ? (
+          <div className="border rounded-xl p-6 bg-white">
+            Loading employees...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border bg-white">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border p-3 text-left">Name</th>
+                  <th className="border p-3 text-left">Email</th>
+                  <th className="border p-3 text-left">Role</th>
+                  <th className="border p-3 text-left">Department</th>
+                  <th className="border p-3 text-left">Phone</th>
+                  <th className="border p-3 text-left">Status</th>
+                  <th className="border p-3 text-left">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredEmployees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td className="border p-3">
+                      {emp.first_name} {emp.last_name}
+                    </td>
+
+                    <td className="border p-3">{emp.email}</td>
+
+                    <td className="border p-3">
+                      <RoleBadge role={emp.role} />
+                    </td>
+
+                    <td className="border p-3">{emp.department || "-"}</td>
+
+                    <td className="border p-3">{emp.phone || "-"}</td>
+
+                    <td className="border p-3">
+                      <StatusBadge active={emp.active} />
+                    </td>
+
+                    <td className="border p-3">
+                      {emp.id === currentUser?.id ? (
+                        <span className="text-gray-500 font-semibold">
+                          Current User
+                        </span>
+                      ) : (
+                        <div className="flex gap-2">
+                          {canEditRole(emp.role) && (
+                            <button
+                              onClick={() => openEditForm(emp)}
+                              className="bg-blue-600 text-white px-3 py-1 rounded"
+                            >
+                              Edit
+                            </button>
+                          )}
+
+                          {canEditRole(emp.role) &&
+                            (emp.active ? (
+                              <button
+                                onClick={() => handleDeactivate(emp)}
+                                className="bg-red-600 text-white px-3 py-1 rounded"
+                              >
+                                Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleActivate(emp.id)}
+                                className="bg-green-600 text-white px-3 py-1 rounded"
+                              >
+                                Activate
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredEmployees.length === 0 && (
+                  <tr>
+                    <td className="border p-3 text-center" colSpan="7">
+                      No employees found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
     </>
   );
