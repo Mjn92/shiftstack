@@ -1,5 +1,6 @@
 require("dotenv").config();
 require("./config/db");
+require("./config/validateEnv");
 
 const express = require("express");
 const cors = require("cors");
@@ -39,21 +40,30 @@ const errorLogStream = fs.createWriteStream(
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://shiftstack-lovat.vercel.app",
-];
+  process.env.FRONTEND_URL,
+  process.env.STAGING_FRONTEND_URL,
+].filter(Boolean);
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+  origin(origin, callback) {
+    // Allow Postman, curl, server-to-server requests
+    if (!origin) {
       return callback(null, true);
     }
 
-    return callback(new Error(`CORS blocked: ${origin}`));
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn(`Blocked CORS request from: ${origin}`);
+
+    return callback(new Error("Not allowed by CORS"));
   },
+
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
   allowedHeaders: ["Content-Type", "Authorization"],
+
   credentials: true,
 };
 

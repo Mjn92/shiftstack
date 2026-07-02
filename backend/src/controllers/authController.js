@@ -14,7 +14,7 @@ const {
 
 const register = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, role } = req.body;
+    const { first_name, last_name, email, password } = req.body;
 
     if (!first_name || !last_name || !email || !password) {
       return res
@@ -23,7 +23,7 @@ const register = async (req, res) => {
     }
 
     const existingUser = await pool.query(
-      "SELECT id FROM employees WHERE email = $1",
+      "SELECT id FROM employees WHERE LOWER(email) = LOWER($1)",
       [email],
     );
 
@@ -38,7 +38,7 @@ const register = async (req, res) => {
        (first_name, last_name, email, password_hash, role)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, first_name, last_name, email, role`,
-      [first_name, last_name, email, password_hash, role || "employee"],
+      [first_name, last_name, email.toLowerCase(), password_hash, "employee"],
     );
 
     await createAuditLog({
@@ -209,7 +209,7 @@ const refresh = async (req, res) => {
       });
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
     const employeeResult = await pool.query(
       `

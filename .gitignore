@@ -6,6 +6,7 @@ dist
 build
 coverage
 .DS_Store
+.env.*
 
 mobile-app/node_modules
 web-dashboard/node_modules
