@@ -88,6 +88,10 @@ export default function Navbar() {
           Profile
         </Link>
 
+        <Link href="/notifications" style={getLinkStyle("/notifications")}>
+          Notifications
+        </Link>
+
         <Link href="/employees" style={getLinkStyle("/employees")}>
           Employees
         </Link>

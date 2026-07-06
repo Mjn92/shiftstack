@@ -176,6 +176,14 @@ export default function DashboardPage() {
               buttonText="Open Profile"
               onClick={() => router.push("/profile")}
             />
+
+            <DashboardCard
+              title="Notifications"
+              value="Inbox"
+              text="View system alerts, reminders, and messages."
+              buttonText="Open Notifications"
+              onClick={() => router.push("/notifications")}
+            />
           </div>
         </section>
 
