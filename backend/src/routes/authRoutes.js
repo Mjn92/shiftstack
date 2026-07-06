@@ -6,6 +6,7 @@ const {
   register,
   login,
   me,
+  //refreshToken,
   logout,
   updateProfile,
   changePassword,
@@ -38,7 +39,7 @@ router.post(
   login,
 );
 
-router.post("/refresh", refresh);
+//router.post("/refresh", refresh);
 
 router.post("/logout", protect, logout);
 
