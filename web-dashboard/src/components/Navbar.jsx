@@ -72,22 +72,6 @@ export default function Navbar() {
           Dashboard
         </Link>
 
-        <Link href="/employees" style={getLinkStyle("/employees")}>
-          Employees
-        </Link>
-
-        <Link href="/time-entries" style={getLinkStyle("/time-entries")}>
-          Time Entries
-        </Link>
-
-        <Link href="/audit-logs" style={getLinkStyle("/audit-logs")}>
-          Audit Logs
-        </Link>
-
-        <Link href="/reports" style={getLinkStyle("/reports")}>
-          Reports
-        </Link>
-
         <Link href="/clock" style={getLinkStyle("/clock")}>
           Clock
         </Link>
@@ -102,6 +86,22 @@ export default function Navbar() {
 
         <Link href="/profile" style={getLinkStyle("/profile")}>
           Profile
+        </Link>
+
+        <Link href="/employees" style={getLinkStyle("/employees")}>
+          Employees
+        </Link>
+
+        <Link href="/time-entries" style={getLinkStyle("/time-entries")}>
+          Time Entries
+        </Link>
+
+        <Link href="/reports" style={getLinkStyle("/reports")}>
+          Reports
+        </Link>
+
+        <Link href="/audit-logs" style={getLinkStyle("/audit-logs")}>
+          Audit Logs
         </Link>
 
         <button
