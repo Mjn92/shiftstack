@@ -92,6 +92,10 @@ export default function Navbar() {
           Clock
         </Link>
 
+        <Link href="/time-history" style={getLinkStyle("/time-history")}>
+          Time History
+        </Link>
+
         <button
           onClick={handleLogout}
           style={{
