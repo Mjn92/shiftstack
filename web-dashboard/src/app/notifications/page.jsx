@@ -46,6 +46,7 @@ export default function NotificationsPage() {
     try {
       await api.patch(`/notifications/${id}/read`);
       await loadNotifications();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Could not mark notification as read.");
     }
@@ -55,6 +56,7 @@ export default function NotificationsPage() {
     try {
       await api.patch("/notifications/read-all");
       await loadNotifications();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Could not mark all notifications as read.");
     }

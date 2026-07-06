@@ -66,8 +66,10 @@ export default function Navbar() {
           display: "flex",
           gap: "12px",
           alignItems: "center",
+          flexWrap: "wrap",
         }}
       >
+        {/* Available to all authenticated users */}
         <Link href="/dashboard" style={getLinkStyle("/dashboard")}>
           Dashboard
         </Link>
@@ -92,21 +94,29 @@ export default function Navbar() {
           Notifications
         </Link>
 
-        <Link href="/employees" style={getLinkStyle("/employees")}>
-          Employees
-        </Link>
+        {/* Manager + Admin */}
+        {(employee?.role === "manager" || employee?.role === "admin") && (
+          <>
+            <Link href="/employees" style={getLinkStyle("/employees")}>
+              Employees
+            </Link>
 
-        <Link href="/time-entries" style={getLinkStyle("/time-entries")}>
-          Time Entries
-        </Link>
+            <Link href="/time-entries" style={getLinkStyle("/time-entries")}>
+              Time Entries
+            </Link>
 
-        <Link href="/reports" style={getLinkStyle("/reports")}>
-          Reports
-        </Link>
+            <Link href="/reports" style={getLinkStyle("/reports")}>
+              Reports
+            </Link>
+          </>
+        )}
 
-        <Link href="/audit-logs" style={getLinkStyle("/audit-logs")}>
-          Audit Logs
-        </Link>
+        {/* Admin Only */}
+        {employee?.role === "admin" && (
+          <Link href="/audit-logs" style={getLinkStyle("/audit-logs")}>
+            Audit Logs
+          </Link>
+        )}
 
         <button
           onClick={handleLogout}
