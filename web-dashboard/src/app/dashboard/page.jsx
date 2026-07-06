@@ -49,7 +49,12 @@ export default function DashboardPage() {
     return <p style={{ padding: "32px" }}>Loading...</p>;
   }
 
-  const today = new Date().toDateString();
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const todaysEntries = entries.filter((entry) => {
     return new Date(entry.clock_in).toDateString() === today;
@@ -312,6 +317,8 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
     gap: "24px",
+    maxWidth: "1400px",
+    margin: "0 auto",
   },
   card: {
     backgroundColor: "#FFFFFF",
