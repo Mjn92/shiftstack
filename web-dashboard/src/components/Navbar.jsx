@@ -96,6 +96,10 @@ export default function Navbar() {
           Time History
         </Link>
 
+        <Link href="/weekly-summary" style={getLinkStyle("/weekly-summary")}>
+          Weekly Summary
+        </Link>
+
         <button
           onClick={handleLogout}
           style={{

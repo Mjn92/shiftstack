@@ -100,6 +100,13 @@ export default function DashboardPage() {
           />
 
           <DashboardCard
+            title="Weekly Summary"
+            text="View your total hours, shifts, and overtime for the current week."
+            buttonText="View Weekly Summary"
+            onClick={() => router.push("/weekly-summary")}
+          />
+
+          <DashboardCard
             title="Profile"
             text={`${employee.first_name} ${employee.last_name} | ${employee.email}`}
             buttonText="View Profile"
