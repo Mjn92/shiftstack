@@ -88,6 +88,10 @@ export default function Navbar() {
           Reports
         </Link>
 
+        <Link href="/clock" style={getLinkStyle("/clock")}>
+          Clock
+        </Link>
+
         <button
           onClick={handleLogout}
           style={{
