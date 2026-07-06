@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [entries, setEntries] = useState([]);
   const [weeklySummary, setWeeklySummary] = useState(null);
   const [error, setError] = useState("");
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !employee) {
@@ -30,6 +31,7 @@ export default function DashboardPage() {
 
   const loadDashboardData = async () => {
     try {
+      setPageLoading(true);
       setError("");
 
       const statusResponse = await api.get("/time/status");
@@ -41,12 +43,26 @@ export default function DashboardPage() {
       setWeeklySummary(weeklyResponse.data);
     } catch (err) {
       console.error("Dashboard load error:", err);
-      setError("Could not load dashboard data.");
+      setError(
+        err.response?.data?.error ||
+          "Could not load your dashboard data. Please try refreshing.",
+      );
+    } finally {
+      setPageLoading(false);
     }
   };
 
   if (loading || !employee) {
-    return <p style={{ padding: "32px" }}>Loading...</p>;
+    return (
+      <main style={styles.loadingPage}>
+        <div style={styles.loadingCard}>
+          <h1 style={styles.loadingTitle}>Loading ShiftStack...</h1>
+          <p style={styles.loadingText}>
+            Checking your session and dashboard access.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const today = new Date().toLocaleDateString(undefined, {
@@ -87,9 +103,17 @@ export default function DashboardPage() {
           <p style={styles.pageSubtitle}>
             Role: {employee.role} | ShiftStack Dashboard
           </p>
-        </section>
 
+          <button style={styles.refreshButton} onClick={loadDashboardData}>
+            Refresh Dashboard
+          </button>
+        </section>
         {error && <div style={styles.error}>{error}</div>}
+        {pageLoading && (
+          <div style={styles.info}>
+            Loading your latest shift, weekly summary, and activity data...
+          </div>
+        )}
 
         <section>
           <h2 style={styles.sectionTitle}>My Shift Overview</h2>
@@ -110,7 +134,9 @@ export default function DashboardPage() {
 
             <DashboardCard
               title="Today's Hours"
-              value={`${todaysHours} hrs`}
+              value={
+                todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
+              }
               text="Total closed shift hours for today."
               buttonText="View Time History"
               onClick={() => router.push("/time-history")}
@@ -118,7 +144,11 @@ export default function DashboardPage() {
 
             <DashboardCard
               title="Weekly Hours"
-              value={`${weeklySummary?.total_hours || 0} hrs`}
+              value={
+                weeklySummary?.total_hours > 0
+                  ? `${weeklySummary.total_hours} hrs`
+                  : "No hours this week"
+              }
               text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
               buttonText="Weekly Summary"
               onClick={() => router.push("/weekly-summary")}
@@ -141,9 +171,11 @@ export default function DashboardPage() {
             <DashboardCard
               title="Current Shift"
               value={
-                currentEntry?.clock_in
-                  ? new Date(currentEntry.clock_in).toLocaleTimeString()
-                  : "None"
+                lastEntry
+                  ? lastEntry.status === "open"
+                    ? "Clocked In"
+                    : "Clocked Out"
+                  : "No activity yet"
               }
               text={
                 currentEntry?.clock_in
@@ -373,5 +405,52 @@ const styles = {
     padding: "12px 16px",
     borderRadius: "10px",
     marginBottom: "16px",
+  },
+  loadingPage: {
+    minHeight: "100vh",
+    backgroundColor: "#EAF3FF",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "32px",
+  },
+
+  loadingCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "20px",
+    padding: "32px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    border: "1px solid #DCEBFF",
+    textAlign: "center",
+  },
+
+  loadingTitle: {
+    color: "#0A4DA2",
+    fontSize: "28px",
+    fontWeight: "bold",
+    marginBottom: "8px",
+  },
+
+  loadingText: {
+    color: "#6B7280",
+  },
+
+  info: {
+    backgroundColor: "#DBEAFE",
+    color: "#1E40AF",
+    padding: "12px 16px",
+    borderRadius: "10px",
+    marginBottom: "16px",
+  },
+
+  refreshButton: {
+    backgroundColor: "#FFFFFF",
+    color: "#0A4DA2",
+    border: "1px solid #0A4DA2",
+    padding: "10px 16px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    marginTop: "16px",
   },
 };
