@@ -100,6 +100,10 @@ export default function Navbar() {
           Weekly Summary
         </Link>
 
+        <Link href="/profile" style={getLinkStyle("/profile")}>
+          Profile
+        </Link>
+
         <button
           onClick={handleLogout}
           style={{

@@ -5,9 +5,10 @@ const router = express.Router();
 const {
   register,
   login,
-  refresh,
-  logout,
   me,
+  logout,
+  updateProfile,
+  changePassword,
 } = require("../controllers/authController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -42,5 +43,9 @@ router.post("/refresh", refresh);
 router.post("/logout", protect, logout);
 
 router.get("/me", protect, me);
+
+router.put("/profile", protect, updateProfile);
+
+router.put("/change-password", protect, changePassword);
 
 module.exports = router;
