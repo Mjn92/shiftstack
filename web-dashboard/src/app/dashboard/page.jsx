@@ -1,146 +1,87 @@
 "use client";
 
+import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "../../components/Navbar.jsx";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import DashboardCard from "../../components/dashboard/DashboardCard";
+import StatusBadge from "../../components/dashboard/StatusBadge";
+import QuickActionCard from "../../components/dashboard/QuickActionCard";
+import { AuthContext } from "../../context/AuthContext";
+import api from "../../api/api";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { employee, loading } = useContext(AuthContext);
+
+  const [clockStatus, setClockStatus] = useState(null);
+  const [entries, setEntries] = useState([]);
+
+  useEffect(() => {
+    if (!loading && !employee) {
+      router.push("/login");
+    }
+  }, [loading, employee, router]);
+
+  const loadDashboardData = async () => {
+    try {
+      const statusResponse = await api.get("/time/status");
+      const entriesResponse = await api.get("/time/my-entries");
+
+      setClockStatus(statusResponse.data);
+      setEntries(entriesResponse.data);
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (employee) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadDashboardData();
+    }
+  }, [employee]);
+
+  if (loading || !employee) {
+    return <p className="p-6">Loading...</p>;
+  }
+
+  const today = new Date().toDateString();
+
+  const todaysEntries = entries.filter((entry) => {
+    return new Date(entry.clock_in).toDateString() === today;
+  });
+
+  const todaysMinutes = todaysEntries.reduce((total, entry) => {
+    return total + (entry.total_minutes || 0);
+  }, 0);
+
+  const todaysHours = (todaysMinutes / 60).toFixed(2);
 
   return (
-    <>
-      <Navbar />
+    <DashboardLayout>
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold">
+          Welcome back, {employee.first_name}
+        </h2>
+        <p className="text-gray-500">Here is your ShiftStack dashboard.</p>
+      </div>
 
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#EAF3FF",
-          padding: "32px",
-        }}
-      >
-        <div style={{ marginBottom: "32px" }}>
-          <h1
-            style={{
-              color: "#0A4DA2",
-              fontSize: "36px",
-              fontWeight: "bold",
-              marginBottom: "8px",
-            }}
-          >
-            ShiftStack Dashboard
-          </h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <DashboardCard
+          title="Current Status"
+          value={<StatusBadge status={clockStatus?.clocked_in} />}
+        />
 
-          <p
-            style={{
-              color: "#6B7280",
-              fontSize: "16px",
-            }}
-          >
-            Manage employees, review time entries, and generate reports.
-          </p>
-        </div>
+        <DashboardCard title="Today's Hours" value={`${todaysHours} hrs`} />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "24px",
-          }}
-        >
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>👥 Employees</h3>
+        <DashboardCard title="Role" value={employee.role} />
+      </div>
 
-            <p style={styles.cardText}>
-              View employee records, roles, and account status.
-            </p>
-
-            <button
-              style={styles.button}
-              onClick={() => router.push("/employees")}
-            >
-              Manage Employees
-            </button>
-          </div>
-
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>⏰ Time Entries</h3>
-
-            <p style={styles.cardText}>
-              Review clock-ins, clock-outs, and shift history.
-            </p>
-
-            <button
-              style={styles.button}
-              onClick={() => router.push("/time-entries")}
-            >
-              View Time Entries
-            </button>
-          </div>
-
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>📊 Reports</h3>
-
-            <p style={styles.cardText}>
-              Generate weekly reports and payroll exports.
-            </p>
-
-            <button
-              style={styles.button}
-              onClick={() => router.push("/reports")}
-            >
-              Open Reports
-            </button>
-          </div>
-
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>📝 Audit Logs</h3>
-
-            <p style={styles.cardText}>
-              Review authentication events and system activity.
-            </p>
-
-            <button
-              style={styles.button}
-              onClick={() => router.push("/audit-logs")}
-            >
-              View Audit Logs
-            </button>
-          </div>
-        </div>
-      </main>
-    </>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <QuickActionCard title="Clock" href="/clock" />
+        <QuickActionCard title="Time History" href="/time-history" />
+        <QuickActionCard title="Profile" href="/profile" />
+      </div>
+    </DashboardLayout>
   );
 }
-
-const styles = {
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: "20px",
-    padding: "24px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-    border: "1px solid #DCEBFF",
-  },
-
-  cardTitle: {
-    color: "#0A4DA2",
-    fontSize: "22px",
-    fontWeight: "bold",
-    marginBottom: "12px",
-  },
-
-  cardText: {
-    color: "#6B7280",
-    marginBottom: "20px",
-    lineHeight: "1.5",
-  },
-
-  button: {
-    backgroundColor: "#0A4DA2",
-    color: "#FFFFFF",
-    border: "none",
-    padding: "12px 18px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-    width: "100%",
-  },
-};
