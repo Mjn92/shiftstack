@@ -299,6 +299,7 @@ function DashboardCard({
   buttonText,
   onClick,
   highlight = "default",
+  disabled = false,
 }) {
   const highlightStyle =
     highlight === "success"
@@ -313,13 +314,20 @@ function DashboardCard({
       <h3 style={highlightStyle}>{value}</h3>
       <p style={styles.cardText}>{text}</p>
 
-      <button style={styles.button} onClick={onClick}>
+      <button
+        style={{
+          ...styles.button,
+          backgroundColor: disabled ? "#9CA3AF" : "#0A4DA2",
+          cursor: disabled ? "not-allowed" : "pointer",
+        }}
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+      >
         {buttonText}
       </button>
     </div>
   );
 }
-
 const styles = {
   page: {
     minHeight: "100vh",
