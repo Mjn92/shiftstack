@@ -52,51 +52,16 @@ export default function Navbar() {
   const adminLinks = [{ href: "/audit-logs", label: "Audit Logs" }];
 
   return (
-    <nav
-      style={{
-        backgroundColor: "#111827",
-        color: "white",
-        padding: "16px 32px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "24px",
-        borderBottom: "3px solid #2563EB",
-        flexWrap: "wrap",
-      }}
-    >
-      <div style={{ minWidth: "180px" }}>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: "28px",
-            fontWeight: "bold",
-          }}
-        >
-          ShiftStack
-        </h1>
+    <nav style={styles.nav}>
+      <div style={styles.brand}>
+        <h1 style={styles.brandTitle}>ShiftStack</h1>
 
-        <p
-          style={{
-            margin: 0,
-            color: "#9CA3AF",
-            fontSize: "14px",
-          }}
-        >
+        <p style={styles.brandSubtitle}>
           {employee?.first_name || "User"} | {employee?.role || "role"}
         </p>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "20px",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          justifyContent: "flex-end",
-          flex: 1,
-        }}
-      >
+      <div style={styles.navigationArea}>
         <NavGroup title="Home">
           {employeeLinks.map((link) => (
             <Link
@@ -137,29 +102,10 @@ export default function Navbar() {
           </NavGroup>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            alignItems: "flex-end",
-          }}
-        >
-          <span style={{ color: "#9CA3AF", fontSize: "12px" }}>Session</span>
+        <div style={styles.sessionGroup}>
+          <span style={styles.groupTitle}>Session</span>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              backgroundColor: "#DC2626",
-              color: "white",
-              border: "none",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: "bold",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <button onClick={handleLogout} style={styles.logoutButton}>
             Logout
           </button>
         </div>
@@ -170,34 +116,97 @@ export default function Navbar() {
 
 function NavGroup({ title, children }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "8px",
-      }}
-    >
-      <span
-        style={{
-          color: "#9CA3AF",
-          fontSize: "12px",
-          fontWeight: "bold",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
-        {title}
-      </span>
+    <div style={styles.navGroup}>
+      <span style={styles.groupTitle}>{title}</span>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          flexWrap: "wrap",
-        }}
-      >
-        {children}
-      </div>
+      <div style={styles.linkGroup}>{children}</div>
     </div>
   );
 }
+
+const styles = {
+  nav: {
+    backgroundColor: "#111827",
+    color: "white",
+    padding: "16px clamp(16px, 3vw, 32px)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "24px",
+    borderBottom: "3px solid #2563EB",
+    flexWrap: "wrap",
+    width: "100%",
+    boxSizing: "border-box",
+  },
+
+  brand: {
+    minWidth: "180px",
+    flex: "0 1 auto",
+  },
+
+  brandTitle: {
+    margin: 0,
+    fontSize: "clamp(24px, 3vw, 28px)",
+    fontWeight: "bold",
+    overflowWrap: "anywhere",
+  },
+
+  brandSubtitle: {
+    margin: 0,
+    color: "#9CA3AF",
+    fontSize: "14px",
+    overflowWrap: "anywhere",
+  },
+
+  navigationArea: {
+    display: "flex",
+    gap: "20px",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    flex: "1 1 600px",
+    minWidth: 0,
+  },
+
+  navGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    minWidth: 0,
+  },
+
+  groupTitle: {
+    color: "#9CA3AF",
+    fontSize: "12px",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  },
+
+  linkGroup: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    minWidth: 0,
+  },
+
+  sessionGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    alignItems: "flex-end",
+    flex: "0 0 auto",
+  },
+
+  logoutButton: {
+    backgroundColor: "#DC2626",
+    color: "white",
+    border: "none",
+    padding: "10px 16px",
+    minHeight: "44px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    whiteSpace: "nowrap",
+  },
+};

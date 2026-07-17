@@ -65,7 +65,9 @@ export default function DashboardPage() {
     );
   }
 
-  const today = new Date().toLocaleDateString(undefined, {
+  const todayDate = new Date();
+
+  const today = todayDate.toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -73,7 +75,7 @@ export default function DashboardPage() {
   });
 
   const todaysEntries = entries.filter((entry) => {
-    return new Date(entry.clock_in).toDateString() === today;
+    return new Date(entry.clock_in).toDateString() === todayDate.toDateString();
   });
 
   const todaysMinutes = todaysEntries.reduce((total, entry) => {
@@ -97,196 +99,213 @@ export default function DashboardPage() {
       <Navbar />
 
       <main style={styles.page}>
-        <section style={styles.header}>
-          <h1 style={styles.pageTitle}>Welcome back, {employee.first_name}</h1>
+        <div style={styles.container}>
+          <section style={styles.header}>
+            <div style={styles.headerContent}>
+              <div style={styles.headerText}>
+                <h1 style={styles.pageTitle}>
+                  Welcome back, {employee.first_name}
+                </h1>
 
-          <p style={styles.pageSubtitle}>
-            Role: {employee.role} | ShiftStack Dashboard
-          </p>
+                <p style={styles.pageSubtitle}>
+                  {today} · {employee.role} dashboard
+                </p>
+              </div>
 
-          <button style={styles.refreshButton} onClick={loadDashboardData}>
-            Refresh Dashboard
-          </button>
-        </section>
-        {error && <div style={styles.error}>{error}</div>}
-        {pageLoading && (
-          <div style={styles.info}>
-            Loading your latest shift, weekly summary, and activity data...
-          </div>
-        )}
+              <button
+                style={{
+                  ...styles.refreshButton,
+                  ...(pageLoading ? styles.refreshButtonDisabled : {}),
+                }}
+                onClick={loadDashboardData}
+                disabled={pageLoading}
+              >
+                {pageLoading ? "Refreshing..." : "Refresh Dashboard"}
+              </button>
+            </div>
+          </section>
 
-        <section>
-          <h2 style={styles.sectionTitle}>My Shift Overview</h2>
+          {error && <div style={styles.error}>{error}</div>}
 
-          <div style={styles.grid}>
-            <DashboardCard
-              title="Current Status"
-              value={isClockedIn ? "Clocked In" : "Clocked Out"}
-              text={
-                isClockedIn
-                  ? "You currently have an active shift."
-                  : "You are not currently clocked in."
-              }
-              buttonText={isClockedIn ? "Clock Out" : "Clock In"}
-              onClick={() => router.push("/clock")}
-              highlight={isClockedIn ? "success" : "neutral"}
-            />
+          {pageLoading && (
+            <div style={styles.info}>
+              Loading your latest shift, weekly summary, and activity data...
+            </div>
+          )}
 
-            <DashboardCard
-              title="Today's Hours"
-              value={
-                todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
-              }
-              text="Total closed shift hours for today."
-              buttonText="View Time History"
-              onClick={() => router.push("/time-history")}
-            />
-
-            <DashboardCard
-              title="Weekly Hours"
-              value={
-                weeklySummary?.total_hours > 0
-                  ? `${weeklySummary.total_hours} hrs`
-                  : "No hours this week"
-              }
-              text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
-              buttonText="Weekly Summary"
-              onClick={() => router.push("/weekly-summary")}
-            />
-
-            <DashboardCard
-              title="Overtime"
-              value={`${weeklySummary?.overtime_hours || 0} hrs`}
-              text="Estimated overtime above 40 hours."
-              buttonText="View Weekly Summary"
-              onClick={() => router.push("/weekly-summary")}
-            />
-          </div>
-        </section>
-
-        <section>
-          <h2 style={styles.sectionTitle}>Shift Details</h2>
-
-          <div style={styles.grid}>
-            <DashboardCard
-              title="Current Shift"
-              value={
-                lastEntry
-                  ? lastEntry.status === "open"
-                    ? "Clocked In"
-                    : "Clocked Out"
-                  : "No activity yet"
-              }
-              text={
-                currentEntry?.clock_in
-                  ? `Started on ${new Date(
-                      currentEntry.clock_in,
-                    ).toLocaleDateString()}`
-                  : "No active shift right now."
-              }
-              buttonText="Open Clock Center"
-              onClick={() => router.push("/clock")}
-            />
-
-            <DashboardCard
-              title="Last Clock Event"
-              value={
-                lastEntry
-                  ? lastEntry.status === "open"
-                    ? "Clocked In"
-                    : "Clocked Out"
-                  : "None"
-              }
-              text={
-                lastEntry
-                  ? new Date(lastEntry.clock_in).toLocaleString()
-                  : "No time entries found."
-              }
-              buttonText="View History"
-              onClick={() => router.push("/time-history")}
-            />
-
-            <DashboardCard
-              title="My Profile"
-              value={employee.email}
-              text={`${employee.first_name} ${employee.last_name}`}
-              buttonText="Open Profile"
-              onClick={() => router.push("/profile")}
-            />
-
-            <DashboardCard
-              title="Notifications"
-              value="Inbox"
-              text="View system alerts, reminders, and messages."
-              buttonText="Open Notifications"
-              onClick={() => router.push("/notifications")}
-            />
-          </div>
-        </section>
-
-        {showManagerTools && (
           <section>
-            <h2 style={styles.sectionTitle}>Management Tools</h2>
+            <h2 style={styles.sectionTitle}>My Shift Overview</h2>
 
-            <div style={styles.grid}>
+            <div style={styles.cardGrid}>
               <DashboardCard
-                title="Employees"
-                value="Team"
-                text="View employee records, roles, and account status."
-                buttonText="Manage Employees"
-                onClick={() => router.push("/employees")}
+                title="Current Status"
+                value={isClockedIn ? "Clocked In" : "Clocked Out"}
+                text={
+                  isClockedIn
+                    ? "You currently have an active shift."
+                    : "You are not currently clocked in."
+                }
+                buttonText={isClockedIn ? "Clock Out" : "Clock In"}
+                onClick={() => router.push("/clock")}
+                highlight={isClockedIn ? "success" : "neutral"}
               />
 
               <DashboardCard
-                title="Time Entries"
-                value="Review"
-                text="Review clock-ins, clock-outs, and shift history."
-                buttonText="View Time Entries"
-                onClick={() => router.push("/time-entries")}
+                title="Today's Hours"
+                value={
+                  todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
+                }
+                text="Total closed shift hours for today."
+                buttonText="View Time History"
+                onClick={() => router.push("/time-history")}
               />
 
               <DashboardCard
-                title="Reports"
-                value="Reports"
-                text="Generate weekly reports and payroll exports."
-                buttonText="Open Reports"
-                onClick={() => router.push("/reports")}
+                title="Weekly Hours"
+                value={
+                  weeklySummary?.total_hours > 0
+                    ? `${weeklySummary.total_hours} hrs`
+                    : "No hours this week"
+                }
+                text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
+                buttonText="Weekly Summary"
+                onClick={() => router.push("/weekly-summary")}
+              />
+
+              <DashboardCard
+                title="Overtime"
+                value={`${weeklySummary?.overtime_hours || 0} hrs`}
+                text="Estimated overtime above 40 hours."
+                buttonText="View Weekly Summary"
+                onClick={() => router.push("/weekly-summary")}
               />
             </div>
           </section>
-        )}
 
-        {showAdminTools && (
           <section>
-            <h2 style={styles.sectionTitle}>Admin Tools</h2>
+            <h2 style={styles.sectionTitle}>Shift Details</h2>
 
-            <div style={styles.grid}>
+            <div style={styles.cardGrid}>
               <DashboardCard
-                title="Audit Logs"
-                value="Security"
-                text="Review authentication events and system activity."
-                buttonText="View Audit Logs"
-                onClick={() => router.push("/audit-logs")}
+                title="Current Shift"
+                value={
+                  lastEntry
+                    ? lastEntry.status === "open"
+                      ? "Clocked In"
+                      : "Clocked Out"
+                    : "No activity yet"
+                }
+                text={
+                  currentEntry?.clock_in
+                    ? `Started on ${new Date(
+                        currentEntry.clock_in,
+                      ).toLocaleDateString()}`
+                    : "No active shift right now."
+                }
+                buttonText="Open Clock Center"
+                onClick={() => router.push("/clock")}
               />
 
               <DashboardCard
-                title="System Health"
-                value="Planned"
-                text="Monitor database, RabbitMQ, and backend health."
-                buttonText="Coming Soon"
-                onClick={() => {}}
+                title="Last Clock Event"
+                value={
+                  lastEntry
+                    ? lastEntry.status === "open"
+                      ? "Clocked In"
+                      : "Clocked Out"
+                    : "None"
+                }
+                text={
+                  lastEntry
+                    ? new Date(lastEntry.clock_in).toLocaleString()
+                    : "No time entries found."
+                }
+                buttonText="View History"
+                onClick={() => router.push("/time-history")}
               />
 
               <DashboardCard
-                title="Maintenance"
-                value="Planned"
-                text="Track cron jobs, cleanup tasks, and rotation history."
-                buttonText="Coming Soon"
-                onClick={() => {}}
+                title="My Profile"
+                value={employee.email}
+                text={`${employee.first_name} ${employee.last_name}`}
+                buttonText="Open Profile"
+                onClick={() => router.push("/profile")}
+              />
+
+              <DashboardCard
+                title="Notifications"
+                value="Inbox"
+                text="View system alerts, reminders, and messages."
+                buttonText="Open Notifications"
+                onClick={() => router.push("/notifications")}
               />
             </div>
           </section>
-        )}
+
+          {showManagerTools && (
+            <section>
+              <h2 style={styles.sectionTitle}>Management Tools</h2>
+
+              <div style={styles.cardGrid}>
+                <DashboardCard
+                  title="Employees"
+                  value="Team"
+                  text="View employee records, roles, and account status."
+                  buttonText="Manage Employees"
+                  onClick={() => router.push("/employees")}
+                />
+
+                <DashboardCard
+                  title="Time Entries"
+                  value="Review"
+                  text="Review clock-ins, clock-outs, and shift history."
+                  buttonText="View Time Entries"
+                  onClick={() => router.push("/time-entries")}
+                />
+
+                <DashboardCard
+                  title="Reports"
+                  value="Reports"
+                  text="Generate weekly reports and payroll exports."
+                  buttonText="Open Reports"
+                  onClick={() => router.push("/reports")}
+                />
+              </div>
+            </section>
+          )}
+
+          {showAdminTools && (
+            <section>
+              <h2 style={styles.sectionTitle}>Admin Tools</h2>
+
+              <div style={styles.cardGrid}>
+                <DashboardCard
+                  title="Audit Logs"
+                  value="Security"
+                  text="Review authentication events and system activity."
+                  buttonText="View Audit Logs"
+                  onClick={() => router.push("/audit-logs")}
+                />
+
+                <DashboardCard
+                  title="System Health"
+                  value="Planned"
+                  text="Monitor database, RabbitMQ, and backend health."
+                  buttonText="Coming Soon"
+                  disabled
+                />
+
+                <DashboardCard
+                  title="Maintenance"
+                  value="Planned"
+                  text="Track cron jobs, cleanup tasks, and rotation history."
+                  buttonText="Coming Soon"
+                  disabled
+                />
+              </div>
+            </section>
+          )}
+        </div>
       </main>
     </>
   );
@@ -332,101 +351,153 @@ const styles = {
   page: {
     minHeight: "100vh",
     backgroundColor: "#EAF3FF",
-    padding: "32px",
+    padding: "clamp(16px, 3vw, 32px)",
   },
-  header: {
-    marginBottom: "32px",
-  },
-  pageTitle: {
-    color: "#0A4DA2",
-    fontSize: "36px",
-    fontWeight: "bold",
-    marginBottom: "8px",
-  },
-  pageSubtitle: {
-    color: "#6B7280",
-    fontSize: "16px",
-  },
-  sectionTitle: {
-    color: "#0A4DA2",
-    fontSize: "24px",
-    fontWeight: "bold",
-    margin: "32px 0 16px",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: "24px",
+
+  container: {
+    width: "100%",
     maxWidth: "1400px",
     margin: "0 auto",
   },
+
+  header: {
+    marginBottom: "32px",
+  },
+
+  headerContent: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "16px",
+    flexWrap: "wrap",
+  },
+
+  headerText: {
+    minWidth: 0,
+    flex: "1 1 280px",
+  },
+
+  pageTitle: {
+    color: "#0A4DA2",
+    fontSize: "clamp(28px, 4vw, 36px)",
+    fontWeight: "bold",
+    margin: "0 0 8px",
+    overflowWrap: "anywhere",
+  },
+
+  pageSubtitle: {
+    color: "#6B7280",
+    fontSize: "16px",
+    margin: 0,
+    overflowWrap: "anywhere",
+  },
+
+  sectionTitle: {
+    color: "#0A4DA2",
+    fontSize: "clamp(21px, 3vw, 24px)",
+    fontWeight: "bold",
+    margin: "32px 0 16px",
+  },
+
+  cardGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+    gap: "20px",
+  },
+
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: "20px",
-    padding: "24px",
+    padding: "clamp(18px, 2vw, 24px)",
     boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
     border: "1px solid #DCEBFF",
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,
+    overflow: "hidden",
   },
+
   cardLabel: {
     color: "#6B7280",
     fontSize: "14px",
     marginBottom: "8px",
   },
+
   cardValue: {
     color: "#0A4DA2",
-    fontSize: "28px",
+    fontSize: "clamp(20px, 2vw, 28px)",
     fontWeight: "bold",
-    marginBottom: "8px",
+    margin: "8px 0",
+    overflowWrap: "anywhere",
     wordBreak: "break-word",
   },
+
   successValue: {
     color: "#16A34A",
-    fontSize: "28px",
+    fontSize: "clamp(20px, 2vw, 28px)",
     fontWeight: "bold",
-    marginBottom: "8px",
+    margin: "8px 0",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
+
   neutralValue: {
     color: "#374151",
-    fontSize: "28px",
+    fontSize: "clamp(20px, 2vw, 28px)",
     fontWeight: "bold",
-    marginBottom: "8px",
+    margin: "8px 0",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
+
   cardText: {
     color: "#6B7280",
     marginBottom: "20px",
-    lineHeight: "1.5",
+    lineHeight: 1.6,
     minHeight: "48px",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   },
+
   button: {
+    width: "100%",
+    marginTop: "auto",
     backgroundColor: "#0A4DA2",
     color: "#FFFFFF",
     border: "none",
-    padding: "12px 18px",
+    padding: "12px 16px",
+    minHeight: "44px",
     borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "bold",
-    width: "100%",
+    fontSize: "14px",
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
   },
+
   error: {
     backgroundColor: "#FEE2E2",
     color: "#991B1B",
     padding: "12px 16px",
     borderRadius: "10px",
     marginBottom: "16px",
+    overflowWrap: "anywhere",
   },
+
   loadingPage: {
     minHeight: "100vh",
     backgroundColor: "#EAF3FF",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "32px",
+    padding: "clamp(16px, 3vw, 32px)",
   },
 
   loadingCard: {
+    width: "min(100%, 460px)",
     backgroundColor: "#FFFFFF",
     borderRadius: "20px",
-    padding: "32px",
+    padding: "clamp(24px, 4vw, 32px)",
     boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
     border: "1px solid #DCEBFF",
     textAlign: "center",
@@ -434,7 +505,7 @@ const styles = {
 
   loadingTitle: {
     color: "#0A4DA2",
-    fontSize: "28px",
+    fontSize: "clamp(24px, 4vw, 28px)",
     fontWeight: "bold",
     marginBottom: "8px",
   },
@@ -449,6 +520,7 @@ const styles = {
     padding: "12px 16px",
     borderRadius: "10px",
     marginBottom: "16px",
+    overflowWrap: "anywhere",
   },
 
   refreshButton: {
@@ -456,9 +528,15 @@ const styles = {
     color: "#0A4DA2",
     border: "1px solid #0A4DA2",
     padding: "10px 16px",
+    minHeight: "44px",
     borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "bold",
-    marginTop: "16px",
+    whiteSpace: "normal",
+  },
+
+  refreshButtonDisabled: {
+    opacity: 0.65,
+    cursor: "not-allowed",
   },
 };
