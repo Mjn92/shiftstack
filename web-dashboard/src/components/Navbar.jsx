@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthContext } from "../context/AuthContext";
+import "./navbar.css";
 
 export default function Navbar() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function Navbar() {
   const adminLinks = [{ href: "/audit-logs", label: "Audit Logs" }];
 
   return (
-    <nav style={styles.nav}>
+    <nav style={styles.nav} aria-label="Primary navigation">
       <div style={styles.brand}>
         <h1 style={styles.brandTitle}>ShiftStack</h1>
 
@@ -67,6 +68,7 @@ export default function Navbar() {
             <Link
               key={link.href}
               href={link.href}
+              className="navbar-link"
               style={getLinkStyle(link.href)}
             >
               {link.label}
@@ -80,6 +82,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                className="navbar-link"
                 style={getLinkStyle(link.href)}
               >
                 {link.label}
@@ -94,6 +97,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                className="navbar-link"
                 style={getLinkStyle(link.href)}
               >
                 {link.label}
@@ -105,7 +109,13 @@ export default function Navbar() {
         <div style={styles.sessionGroup}>
           <span style={styles.groupTitle}>Session</span>
 
-          <button onClick={handleLogout} style={styles.logoutButton}>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="navbar-logout-button"
+            style={styles.logoutButton}
+            aria-label="Log out of ShiftStack"
+          >
             Logout
           </button>
         </div>
@@ -119,7 +129,9 @@ function NavGroup({ title, children }) {
     <div style={styles.navGroup}>
       <span style={styles.groupTitle}>{title}</span>
 
-      <div style={styles.linkGroup}>{children}</div>
+      <div style={styles.linkGroup} aria-label={`${title} navigation links`}>
+        {children}
+      </div>
     </div>
   );
 }

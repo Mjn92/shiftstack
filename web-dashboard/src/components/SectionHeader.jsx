@@ -1,3 +1,7 @@
-export default function SectionHeader({ title, style }) {
-  return <h2 style={style}>{title}</h2>;
+export default function SectionHeader({ title, style, id }) {
+  return (
+    <h2 id={id} style={style}>
+      {title}
+    </h2>
+  );
 }

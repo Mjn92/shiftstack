@@ -7,6 +7,7 @@ import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
 import DashboardCard from "../../components/DashboardCard";
 import DashboardSection from "../../components/DashboardSection";
+import "./dashboard.css";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -57,8 +58,14 @@ export default function DashboardPage() {
   if (loading || !employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard}>
+        <div
+          style={styles.loadingCard}
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
           <h1 style={styles.loadingTitle}>Loading ShiftStack...</h1>
+
           <p style={styles.loadingText}>
             Checking your session and dashboard access.
           </p>
@@ -115,28 +122,41 @@ export default function DashboardPage() {
               </div>
 
               <button
+                type="button"
+                className="dashboard-refresh-button"
                 style={{
                   ...styles.refreshButton,
                   ...(pageLoading ? styles.refreshButtonDisabled : {}),
                 }}
                 onClick={loadDashboardData}
                 disabled={pageLoading}
+                aria-label="Refresh dashboard data"
+                aria-busy={pageLoading}
               >
                 {pageLoading ? "Refreshing..." : "Refresh Dashboard"}
               </button>
             </div>
           </section>
 
-          {error && <div style={styles.error}>{error}</div>}
-
+          {error && (
+            <div style={styles.error} role="alert">
+              {error}
+            </div>
+          )}
           {pageLoading && (
-            <div style={styles.info}>
+            <div
+              style={styles.info}
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
               Loading your latest shift, weekly summary, and activity data...
             </div>
           )}
 
           <DashboardSection
             title="My Shift Overview"
+            headingId="shift-overview-heading"
             sectionStyle={styles.section}
             titleStyle={styles.sectionTitle}
             gridStyle={styles.cardGrid}
@@ -191,6 +211,7 @@ export default function DashboardPage() {
 
           <DashboardSection
             title="Shift Details"
+            headingId="shift-details-heading"
             sectionStyle={styles.section}
             titleStyle={styles.sectionTitle}
             gridStyle={styles.cardGrid}
@@ -257,6 +278,7 @@ export default function DashboardPage() {
           {showManagerTools && (
             <DashboardSection
               title="Management Tools"
+              headingId="management-tools-heading"
               sectionStyle={styles.section}
               titleStyle={styles.sectionTitle}
               gridStyle={styles.cardGrid}
@@ -293,6 +315,7 @@ export default function DashboardPage() {
           {showAdminTools && (
             <DashboardSection
               title="Admin Tools"
+              headingId="admin-tools-heading"
               sectionStyle={styles.section}
               titleStyle={styles.sectionTitle}
               gridStyle={styles.cardGrid}

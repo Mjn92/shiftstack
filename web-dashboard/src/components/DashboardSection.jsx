@@ -6,10 +6,11 @@ export default function DashboardSection({
   sectionStyle,
   titleStyle,
   gridStyle,
+  headingId,
 }) {
   return (
-    <section style={sectionStyle}>
-      <SectionHeader title={title} style={titleStyle} />
+    <section style={sectionStyle} aria-labelledby={headingId}>
+      <SectionHeader title={title} style={titleStyle} id={headingId} />
 
       <div style={gridStyle}>{children}</div>
     </section>
