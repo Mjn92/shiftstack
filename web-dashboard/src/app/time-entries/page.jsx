@@ -1,27 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import Navbar from "../../components/Navbar";
 import api from "../../api/api";
+import { AuthContext } from "../../context/AuthContext";
+import { canAccessManagement } from "../../utils/roleAccess";
 
 export default function TimeEntriesPage() {
+  const router = useRouter();
+  const { employee, loading: authLoading } = useContext(AuthContext);
+
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const hasAccess = canAccessManagement(employee?.role);
 
   useEffect(() => {
+    if (authLoading) {
+      return (
+        <main style={styles.page}>
+          <div style={styles.loadingState} role="status">
+            Checking permissions...
+          </div>
+        </main>
+      );
+    }
+
+    if (!employee) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!hasAccess) {
+      router.replace("/dashboard");
+      return;
+    }
+
     const loadEntries = async () => {
       try {
+        setLoading(true);
+        setError("");
+
         const response = await api.get("/admin/time-entries");
-        setEntries(response.data);
+
+        setEntries(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
         console.error("Error loading time entries:", err);
-        alert("Failed to load time entries.");
+        setError(err.response?.data?.error || "Failed to load time entries.");
       } finally {
         setLoading(false);
       }
     };
+
     loadEntries();
-  }, []);
+  }, [authLoading, employee, hasAccess, router]);
+
+  if (authLoading) {
+    return <main style={styles.loadingState}>Checking permissions...</main>;
+  }
+
+  if (!employee || !hasAccess) {
+    return null;
+  }
 
   return (
     <>
@@ -30,10 +73,13 @@ export default function TimeEntriesPage() {
       <main style={styles.page}>
         <div style={styles.pageHeader}>
           <h1 style={styles.pageTitle}>Time Entries</h1>
+
           <p style={styles.pageSubtitle}>
             Review employee clock-in and clock-out activity.
           </p>
         </div>
+
+        {error && <div style={styles.errorState}>{error}</div>}
 
         <section style={styles.tableCard}>
           {loading ? (
@@ -54,7 +100,7 @@ export default function TimeEntriesPage() {
               <tbody>
                 {entries.length === 0 ? (
                   <tr>
-                    <td style={styles.emptyState} colSpan="6">
+                    <td style={styles.emptyState} colSpan={6}>
                       No time entries found.
                     </td>
                   </tr>
@@ -132,7 +178,7 @@ const styles = {
   tableCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: "20px",
-    overflow: "hidden",
+    overflowX: "auto",
     boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
     border: "1px solid #DCEBFF",
   },
@@ -140,6 +186,7 @@ const styles = {
   table: {
     width: "100%",
     borderCollapse: "collapse",
+    minWidth: "850px",
   },
 
   tableHeaderRow: {
@@ -179,5 +226,14 @@ const styles = {
     padding: "40px",
     textAlign: "center",
     color: "#6B7280",
+  },
+
+  errorState: {
+    backgroundColor: "#FEE2E2",
+    color: "#991B1B",
+    border: "1px solid #FCA5A5",
+    padding: "12px 16px",
+    borderRadius: "10px",
+    marginBottom: "20px",
   },
 };

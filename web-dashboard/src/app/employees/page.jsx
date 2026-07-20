@@ -1,12 +1,18 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
 import api from "../../api/api";
 import { AuthContext } from "../../context/AuthContext";
+import { useRouter } from "next/navigation";
+import { canAccessManagement } from "../../utils/roleAccess";
 
 export default function EmployeesPage() {
-  const { employee: currentUser } = useContext(AuthContext);
+  const router = useRouter();
+  const { employee: currentUser, loading: authLoading } =
+    useContext(AuthContext);
+
+  const hasAccess = canAccessManagement(currentUser?.role);
 
   const [employees, setEmployees] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -55,19 +61,20 @@ export default function EmployeesPage() {
     setFormOpen(false);
   };
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
+
       const response = await api.get("/admin/employees");
-      console.log("Employees from API:", response.data);
-      setEmployees(response.data);
-    } catch {
-      setError("Failed to load employees.");
+
+      setEmployees(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to load employees.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const openCreateForm = () => {
     setError("");
@@ -166,9 +173,22 @@ export default function EmployeesPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadEmployees();
-  }, []);
+    if (!authLoading && !currentUser) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!authLoading && currentUser && !hasAccess) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, currentUser, hasAccess, router]);
+
+  useEffect(() => {
+    if (!authLoading && currentUser && hasAccess) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadEmployees();
+    }
+  }, [authLoading, currentUser, hasAccess, loadEmployees]);
 
   const isActive = (value) => {
     return (
@@ -205,6 +225,20 @@ export default function EmployeesPage() {
     return "#2563EB";
   };
 
+  if (authLoading) {
+    return (
+      <main style={styles.permissionPage}>
+        <div style={styles.permissionCard} role="status" aria-live="polite">
+          Checking permissions...
+        </div>
+      </main>
+    );
+  }
+
+  if (!currentUser || !hasAccess) {
+    return null;
+  }
+
   return (
     <>
       <Navbar />
@@ -218,7 +252,11 @@ export default function EmployeesPage() {
             </p>
           </div>
 
-          <button onClick={openCreateForm} style={styles.primaryButton}>
+          <button
+            type="button"
+            onClick={openCreateForm}
+            style={styles.primaryButton}
+          >
             Add Employee
           </button>
         </div>
@@ -312,7 +350,11 @@ export default function EmployeesPage() {
             </div>
 
             <div style={styles.formActions}>
-              <button disabled={saving} style={styles.primaryButton}>
+              <button
+                type="submit"
+                disabled={saving}
+                style={styles.primaryButton}
+              >
                 {saving
                   ? "Saving..."
                   : editingEmployee
@@ -438,6 +480,7 @@ export default function EmployeesPage() {
                           <div style={styles.actionGroup}>
                             {canEditRole(emp.role) && (
                               <button
+                                type="button"
                                 onClick={() => openEditForm(emp)}
                                 style={styles.editButton}
                               >
@@ -448,6 +491,7 @@ export default function EmployeesPage() {
                             {canEditRole(emp.role) &&
                               (isActive(emp.active) ? (
                                 <button
+                                  type="button"
                                   onClick={() => handleDeactivate(emp)}
                                   style={styles.deactivateButton}
                                 >
@@ -455,6 +499,7 @@ export default function EmployeesPage() {
                                 </button>
                               ) : (
                                 <button
+                                  type="button"
                                   onClick={() => handleActivate(emp.id)}
                                   style={styles.activateButton}
                                 >
@@ -486,6 +531,24 @@ function StatCard({ label, value }) {
 }
 
 const styles = {
+  permissionPage: {
+    minHeight: "100vh",
+    backgroundColor: "#EAF3FF",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "32px",
+  },
+  permissionCard: {
+    backgroundColor: "#FFFFFF",
+    color: "#0A4DA2",
+    border: "1px solid #DCEBFF",
+    borderRadius: "16px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    padding: "24px",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
   page: {
     minHeight: "100vh",
     backgroundColor: "#EAF3FF",
