@@ -47,19 +47,42 @@ export default function DashboardPage() {
       setPageLoading(true);
       setError("");
 
-      const statusResponse = await api.get("/time/status");
-      const entriesResponse = await api.get("/time/my-entries");
-      const weeklyResponse = await api.get("/time/my-weekly-summary");
+      const [statusResponse, entriesResponse, weeklyResponse] =
+        await Promise.all([
+          api.get("/time/status"),
+          api.get("/time/my-entries"),
+          api.get("/time/my-weekly-summary"),
+        ]);
 
-      setClockStatus(statusResponse.data);
-      setEntries(entriesResponse.data);
-      setWeeklySummary(weeklyResponse.data);
+      const statusData =
+        statusResponse?.data && typeof statusResponse.data === "object"
+          ? statusResponse.data
+          : null;
+
+      const entriesData = Array.isArray(entriesResponse?.data)
+        ? entriesResponse.data
+        : [];
+
+      const weeklyData =
+        weeklyResponse?.data &&
+        typeof weeklyResponse.data === "object" &&
+        !Array.isArray(weeklyResponse.data)
+          ? weeklyResponse.data
+          : null;
+
+      setClockStatus(statusData);
+      setEntries(entriesData);
+      setWeeklySummary(weeklyData);
     } catch (err) {
       console.error("Dashboard load error:", err);
-      setError(
+
+      const errorMessage =
         err.response?.data?.error ||
-          "Could not load your dashboard data. Please try refreshing.",
-      );
+        err.response?.data?.message ||
+        err.message ||
+        "Could not load your dashboard data. Please try again.";
+
+      setError(errorMessage);
     } finally {
       setPageLoading(false);
     }
@@ -87,21 +110,23 @@ export default function DashboardPage() {
   const todayDate = new Date();
 
   const today = formatDashboardDate(todayDate);
-
   const todaysEntries = getTodayEntries(entries, todayDate);
-
   const todaysMinutes = calculateTotalMinutes(todaysEntries);
-
   const todaysHours = formatHours(todaysMinutes);
-
   const lastEntry = getLastEntry(entries);
 
-  const isClockedIn = clockStatus?.clocked_in;
-  const currentEntry = clockStatus?.current_entry;
+  const hasEntries = entries.length > 0;
+
+  const totalWeeklyHours = Number(weeklySummary?.total_hours) || 0;
+
+  const totalWeeklyShifts = Number(weeklySummary?.total_shifts) || 0;
+
+  const overtimeHours = Number(weeklySummary?.overtime_hours) || 0;
 
   const showManagerTools = isManager(employee.role);
-
   const showAdminTools = isAdmin(employee.role);
+  const isClockedIn = clockStatus?.clocked_in;
+  const currentEntry = clockStatus?.current_entry;
 
   return (
     <DashboardErrorBoundary>
@@ -141,7 +166,17 @@ export default function DashboardPage() {
 
             {error && (
               <div style={styles.error} role="alert">
-                {error}
+                <p style={styles.errorText}>{error}</p>
+
+                <button
+                  type="button"
+                  className="dashboard-button"
+                  style={styles.errorRetryButton}
+                  onClick={loadDashboardData}
+                  disabled={pageLoading}
+                >
+                  Try Again
+                </button>
               </div>
             )}
             {pageLoading && (
@@ -182,7 +217,11 @@ export default function DashboardPage() {
                 value={
                   todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
                 }
-                text="Total closed shift hours for today."
+                text={
+                  hasEntries
+                    ? "Total closed shift hours recorded for today."
+                    : "Your worked hours will appear after your first completed shift."
+                }
                 buttonText="View Time History"
                 onClick={() => router.push("/time-history")}
               />
@@ -191,11 +230,17 @@ export default function DashboardPage() {
                 styles={styles}
                 title="Weekly Hours"
                 value={
-                  weeklySummary?.total_hours > 0
-                    ? `${weeklySummary.total_hours} hrs`
+                  totalWeeklyHours > 0
+                    ? `${totalWeeklyHours} hrs`
                     : "No hours this week"
                 }
-                text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
+                text={
+                  totalWeeklyShifts > 0
+                    ? `${totalWeeklyShifts} closed ${
+                        totalWeeklyShifts === 1 ? "shift" : "shifts"
+                      } this week.`
+                    : "No completed shifts have been recorded this week."
+                }
                 buttonText="Weekly Summary"
                 onClick={() => router.push("/weekly-summary")}
               />
@@ -203,8 +248,12 @@ export default function DashboardPage() {
               <DashboardCard
                 styles={styles}
                 title="Overtime"
-                value={`${weeklySummary?.overtime_hours || 0} hrs`}
-                text="Estimated overtime above 40 hours."
+                value={`${overtimeHours} hrs`}
+                text={
+                  totalWeeklyHours > 40
+                    ? "Estimated overtime above 40 hours."
+                    : "No overtime has been recorded this week."
+                }
                 buttonText="View Weekly Summary"
                 onClick={() => router.push("/weekly-summary")}
               />
@@ -220,22 +269,17 @@ export default function DashboardPage() {
               <DashboardCard
                 styles={styles}
                 title="Current Shift"
-                value={
-                  lastEntry
-                    ? lastEntry.status === "open"
-                      ? "Clocked In"
-                      : "Clocked Out"
-                    : "No activity yet"
-                }
+                value={isClockedIn ? "Clocked In" : "No active shift"}
                 text={
                   currentEntry?.clock_in
-                    ? `Started on ${new Date(
+                    ? `Started ${new Date(
                         currentEntry.clock_in,
-                      ).toLocaleDateString()}`
-                    : "No active shift right now."
+                      ).toLocaleString()}`
+                    : "Clock in to begin a new shift."
                 }
                 buttonText="Open Clock Center"
                 onClick={() => router.push("/clock")}
+                highlight={isClockedIn ? "success" : "neutral"}
               />
 
               <DashboardCard
@@ -246,12 +290,12 @@ export default function DashboardPage() {
                     ? lastEntry.status === "open"
                       ? "Clocked In"
                       : "Clocked Out"
-                    : "None"
+                    : "No activity yet"
                 }
                 text={
-                  lastEntry
+                  lastEntry?.clock_in
                     ? new Date(lastEntry.clock_in).toLocaleString()
-                    : "No time entries found."
+                    : "Your most recent clock activity will appear here."
                 }
                 buttonText="View History"
                 onClick={() => router.push("/time-history")}
@@ -551,5 +595,21 @@ const styles = {
   refreshButtonDisabled: {
     opacity: 0.65,
     cursor: "not-allowed",
+  },
+  errorText: {
+    margin: 0,
+    lineHeight: 1.5,
+  },
+
+  errorRetryButton: {
+    marginTop: "12px",
+    backgroundColor: "#991B1B",
+    color: "#FFFFFF",
+    border: "none",
+    padding: "10px 16px",
+    minHeight: "44px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: "bold",
   },
 };
