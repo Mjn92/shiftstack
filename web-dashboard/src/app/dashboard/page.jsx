@@ -9,6 +9,15 @@ import DashboardCard from "../../components/DashboardCard";
 import DashboardSection from "../../components/DashboardSection";
 import "./dashboard.css";
 import DashboardErrorBoundary from "../../components/DashboardErrorBoundary";
+import {
+  formatDashboardDate,
+  getTodayEntries,
+  calculateTotalMinutes,
+  formatHours,
+  getLastEntry,
+  isManager,
+  isAdmin,
+} from "../../utils/dashboardHelpers";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -77,32 +86,22 @@ export default function DashboardPage() {
 
   const todayDate = new Date();
 
-  const today = todayDate.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const today = formatDashboardDate(todayDate);
 
-  const todaysEntries = entries.filter((entry) => {
-    return new Date(entry.clock_in).toDateString() === todayDate.toDateString();
-  });
+  const todaysEntries = getTodayEntries(entries, todayDate);
 
-  const todaysMinutes = todaysEntries.reduce((total, entry) => {
-    return total + (entry.total_minutes || 0);
-  }, 0);
+  const todaysMinutes = calculateTotalMinutes(todaysEntries);
 
-  const todaysHours = (todaysMinutes / 60).toFixed(2);
+  const todaysHours = formatHours(todaysMinutes);
+
+  const lastEntry = getLastEntry(entries);
 
   const isClockedIn = clockStatus?.clocked_in;
   const currentEntry = clockStatus?.current_entry;
 
-  const lastEntry = entries.length > 0 ? entries[0] : null;
+  const showManagerTools = isManager(employee.role);
 
-  const showManagerTools =
-    employee.role === "manager" || employee.role === "admin";
-
-  const showAdminTools = employee.role === "admin";
+  const showAdminTools = isAdmin(employee.role);
 
   return (
     <DashboardErrorBoundary>
