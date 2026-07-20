@@ -305,10 +305,92 @@ const me = async (req, res) => {
   }
 };
 
+const updateProfile = async (req, res) => {
+  try {
+    const employeeId = req.user.id;
+    const { first_name, last_name, phone, department } = req.body;
+
+    const result = await pool.query(
+      `UPDATE employees
+       SET first_name = COALESCE($1, first_name),
+           last_name = COALESCE($2, last_name),
+           phone = COALESCE($3, phone),
+           department = COALESCE($4, department),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING id, first_name, last_name, email, role, active, phone, department`,
+      [first_name, last_name, phone, department, employeeId],
+    );
+
+    res.json({
+      message: "Profile updated successfully",
+      employee: result.rows[0],
+    });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const employeeId = req.user.id;
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        error: "Current password and new password are required",
+      });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({
+        error: "New password must be at least 8 characters",
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT password_hash FROM employees WHERE id = $1",
+      [employeeId],
+    );
+
+    const employee = result.rows[0];
+
+    const passwordMatch = await bcrypt.compare(
+      current_password,
+      employee.password_hash,
+    );
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        error: "Current password is incorrect",
+      });
+    }
+
+    const password_hash = await bcrypt.hash(new_password, 10);
+
+    await pool.query(
+      `UPDATE employees
+       SET password_hash = $1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [password_hash, employeeId],
+    );
+
+    res.json({
+      message: "Password changed successfully",
+    });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 module.exports = {
   register,
   login,
-  refresh,
-  logout,
   me,
+  logout,
+  updateProfile,
+  changePassword,
 };

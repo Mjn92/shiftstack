@@ -6,6 +6,7 @@ const {
   clockOut,
   getStatus,
   getMyEntries,
+  getMyWeeklySummary,
 } = require("../controllers/timeController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -37,6 +38,13 @@ router.get(
   protect,
   authorize("employee", "manager", "admin"),
   getMyEntries,
+);
+
+router.get(
+  "/my-weekly-summary",
+  protect,
+  authorize("employee", "manager", "admin"),
+  getMyWeeklySummary,
 );
 
 module.exports = router;

@@ -14,17 +14,9 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");
 
     try {
-      const cleanEmail = email.trim().toLowerCase();
-      const data = await login(cleanEmail, password);
-
-      if (data.employee.role !== "admin" && data.employee.role !== "manager") {
-        setError("Only admins and managers can access this dashboard.");
-        return;
-      }
-
+      await login(email, password);
       router.push("/dashboard");
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {

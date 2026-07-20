@@ -1,0 +1,9 @@
+.dashboard-button:focus-visible,
+.dashboard-refresh-button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+.dashboard-button:disabled:focus-visible {
+  outline-color: #6b7280;
+}
