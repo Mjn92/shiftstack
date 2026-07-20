@@ -8,6 +8,7 @@ import api from "../../api/api";
 import DashboardCard from "../../components/DashboardCard";
 import DashboardSection from "../../components/DashboardSection";
 import "./dashboard.css";
+import DashboardErrorBoundary from "../../components/DashboardErrorBoundary";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -104,253 +105,255 @@ export default function DashboardPage() {
   const showAdminTools = employee.role === "admin";
 
   return (
-    <>
-      <Navbar />
+    <DashboardErrorBoundary>
+      <>
+        <Navbar />
 
-      <main style={styles.page}>
-        <div style={styles.container}>
-          <section style={styles.header}>
-            <div style={styles.headerContent}>
-              <div style={styles.headerText}>
-                <h1 style={styles.pageTitle}>
-                  Welcome back, {employee.first_name}
-                </h1>
+        <main style={styles.page}>
+          <div style={styles.container}>
+            <section style={styles.header}>
+              <div style={styles.headerContent}>
+                <div style={styles.headerText}>
+                  <h1 style={styles.pageTitle}>
+                    Welcome back, {employee.first_name}
+                  </h1>
 
-                <p style={styles.pageSubtitle}>
-                  {today} · {employee.role} dashboard
-                </p>
+                  <p style={styles.pageSubtitle}>
+                    {today} · {employee.role} dashboard
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="dashboard-refresh-button"
+                  style={{
+                    ...styles.refreshButton,
+                    ...(pageLoading ? styles.refreshButtonDisabled : {}),
+                  }}
+                  onClick={loadDashboardData}
+                  disabled={pageLoading}
+                  aria-label="Refresh dashboard data"
+                  aria-busy={pageLoading}
+                >
+                  {pageLoading ? "Refreshing..." : "Refresh Dashboard"}
+                </button>
               </div>
+            </section>
 
-              <button
-                type="button"
-                className="dashboard-refresh-button"
-                style={{
-                  ...styles.refreshButton,
-                  ...(pageLoading ? styles.refreshButtonDisabled : {}),
-                }}
-                onClick={loadDashboardData}
-                disabled={pageLoading}
-                aria-label="Refresh dashboard data"
-                aria-busy={pageLoading}
+            {error && (
+              <div style={styles.error} role="alert">
+                {error}
+              </div>
+            )}
+            {pageLoading && (
+              <div
+                style={styles.info}
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
               >
-                {pageLoading ? "Refreshing..." : "Refresh Dashboard"}
-              </button>
-            </div>
-          </section>
+                Loading your latest shift, weekly summary, and activity data...
+              </div>
+            )}
 
-          {error && (
-            <div style={styles.error} role="alert">
-              {error}
-            </div>
-          )}
-          {pageLoading && (
-            <div
-              style={styles.info}
-              role="status"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              Loading your latest shift, weekly summary, and activity data...
-            </div>
-          )}
-
-          <DashboardSection
-            title="My Shift Overview"
-            headingId="shift-overview-heading"
-            sectionStyle={styles.section}
-            titleStyle={styles.sectionTitle}
-            gridStyle={styles.cardGrid}
-          >
-            <DashboardCard
-              styles={styles}
-              title="Current Status"
-              value={isClockedIn ? "Clocked In" : "Clocked Out"}
-              text={
-                isClockedIn
-                  ? "You currently have an active shift."
-                  : "You are not currently clocked in."
-              }
-              buttonText={isClockedIn ? "Clock Out" : "Clock In"}
-              onClick={() => router.push("/clock")}
-              highlight={isClockedIn ? "success" : "neutral"}
-            />
-
-            <DashboardCard
-              styles={styles}
-              title="Today's Hours"
-              value={
-                todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
-              }
-              text="Total closed shift hours for today."
-              buttonText="View Time History"
-              onClick={() => router.push("/time-history")}
-            />
-
-            <DashboardCard
-              styles={styles}
-              title="Weekly Hours"
-              value={
-                weeklySummary?.total_hours > 0
-                  ? `${weeklySummary.total_hours} hrs`
-                  : "No hours this week"
-              }
-              text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
-              buttonText="Weekly Summary"
-              onClick={() => router.push("/weekly-summary")}
-            />
-
-            <DashboardCard
-              styles={styles}
-              title="Overtime"
-              value={`${weeklySummary?.overtime_hours || 0} hrs`}
-              text="Estimated overtime above 40 hours."
-              buttonText="View Weekly Summary"
-              onClick={() => router.push("/weekly-summary")}
-            />
-          </DashboardSection>
-
-          <DashboardSection
-            title="Shift Details"
-            headingId="shift-details-heading"
-            sectionStyle={styles.section}
-            titleStyle={styles.sectionTitle}
-            gridStyle={styles.cardGrid}
-          >
-            <DashboardCard
-              styles={styles}
-              title="Current Shift"
-              value={
-                lastEntry
-                  ? lastEntry.status === "open"
-                    ? "Clocked In"
-                    : "Clocked Out"
-                  : "No activity yet"
-              }
-              text={
-                currentEntry?.clock_in
-                  ? `Started on ${new Date(
-                      currentEntry.clock_in,
-                    ).toLocaleDateString()}`
-                  : "No active shift right now."
-              }
-              buttonText="Open Clock Center"
-              onClick={() => router.push("/clock")}
-            />
-
-            <DashboardCard
-              styles={styles}
-              title="Last Clock Event"
-              value={
-                lastEntry
-                  ? lastEntry.status === "open"
-                    ? "Clocked In"
-                    : "Clocked Out"
-                  : "None"
-              }
-              text={
-                lastEntry
-                  ? new Date(lastEntry.clock_in).toLocaleString()
-                  : "No time entries found."
-              }
-              buttonText="View History"
-              onClick={() => router.push("/time-history")}
-            />
-
-            <DashboardCard
-              styles={styles}
-              title="My Profile"
-              value={employee.email}
-              text={`${employee.first_name} ${employee.last_name}`}
-              buttonText="Open Profile"
-              onClick={() => router.push("/profile")}
-            />
-
-            <DashboardCard
-              styles={styles}
-              title="Notifications"
-              value="Inbox"
-              text="View system alerts, reminders, and messages."
-              buttonText="Open Notifications"
-              onClick={() => router.push("/notifications")}
-            />
-          </DashboardSection>
-
-          {showManagerTools && (
             <DashboardSection
-              title="Management Tools"
-              headingId="management-tools-heading"
+              title="My Shift Overview"
+              headingId="shift-overview-heading"
               sectionStyle={styles.section}
               titleStyle={styles.sectionTitle}
               gridStyle={styles.cardGrid}
             >
               <DashboardCard
                 styles={styles}
-                title="Employees"
-                value="Team"
-                text="View employee records, roles, and account status."
-                buttonText="Manage Employees"
-                onClick={() => router.push("/employees")}
+                title="Current Status"
+                value={isClockedIn ? "Clocked In" : "Clocked Out"}
+                text={
+                  isClockedIn
+                    ? "You currently have an active shift."
+                    : "You are not currently clocked in."
+                }
+                buttonText={isClockedIn ? "Clock Out" : "Clock In"}
+                onClick={() => router.push("/clock")}
+                highlight={isClockedIn ? "success" : "neutral"}
               />
 
               <DashboardCard
                 styles={styles}
-                title="Time Entries"
-                value="Review"
-                text="Review clock-ins, clock-outs, and shift history."
-                buttonText="View Time Entries"
-                onClick={() => router.push("/time-entries")}
+                title="Today's Hours"
+                value={
+                  todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
+                }
+                text="Total closed shift hours for today."
+                buttonText="View Time History"
+                onClick={() => router.push("/time-history")}
               />
 
               <DashboardCard
                 styles={styles}
-                title="Reports"
-                value="Reports"
-                text="Generate weekly reports and payroll exports."
-                buttonText="Open Reports"
-                onClick={() => router.push("/reports")}
+                title="Weekly Hours"
+                value={
+                  weeklySummary?.total_hours > 0
+                    ? `${weeklySummary.total_hours} hrs`
+                    : "No hours this week"
+                }
+                text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
+                buttonText="Weekly Summary"
+                onClick={() => router.push("/weekly-summary")}
+              />
+
+              <DashboardCard
+                styles={styles}
+                title="Overtime"
+                value={`${weeklySummary?.overtime_hours || 0} hrs`}
+                text="Estimated overtime above 40 hours."
+                buttonText="View Weekly Summary"
+                onClick={() => router.push("/weekly-summary")}
               />
             </DashboardSection>
-          )}
 
-          {showAdminTools && (
             <DashboardSection
-              title="Admin Tools"
-              headingId="admin-tools-heading"
+              title="Shift Details"
+              headingId="shift-details-heading"
               sectionStyle={styles.section}
               titleStyle={styles.sectionTitle}
               gridStyle={styles.cardGrid}
             >
               <DashboardCard
                 styles={styles}
-                title="Audit Logs"
-                value="Security"
-                text="Review authentication events and system activity."
-                buttonText="View Audit Logs"
-                onClick={() => router.push("/audit-logs")}
+                title="Current Shift"
+                value={
+                  lastEntry
+                    ? lastEntry.status === "open"
+                      ? "Clocked In"
+                      : "Clocked Out"
+                    : "No activity yet"
+                }
+                text={
+                  currentEntry?.clock_in
+                    ? `Started on ${new Date(
+                        currentEntry.clock_in,
+                      ).toLocaleDateString()}`
+                    : "No active shift right now."
+                }
+                buttonText="Open Clock Center"
+                onClick={() => router.push("/clock")}
               />
 
               <DashboardCard
                 styles={styles}
-                title="System Health"
-                value="Planned"
-                text="Monitor database, RabbitMQ, and backend health."
-                buttonText="Coming Soon"
-                disabled
+                title="Last Clock Event"
+                value={
+                  lastEntry
+                    ? lastEntry.status === "open"
+                      ? "Clocked In"
+                      : "Clocked Out"
+                    : "None"
+                }
+                text={
+                  lastEntry
+                    ? new Date(lastEntry.clock_in).toLocaleString()
+                    : "No time entries found."
+                }
+                buttonText="View History"
+                onClick={() => router.push("/time-history")}
               />
 
               <DashboardCard
                 styles={styles}
-                title="Maintenance"
-                value="Planned"
-                text="Track cron jobs, cleanup tasks, and rotation history."
-                buttonText="Coming Soon"
-                disabled
+                title="My Profile"
+                value={employee.email}
+                text={`${employee.first_name} ${employee.last_name}`}
+                buttonText="Open Profile"
+                onClick={() => router.push("/profile")}
+              />
+
+              <DashboardCard
+                styles={styles}
+                title="Notifications"
+                value="Inbox"
+                text="View system alerts, reminders, and messages."
+                buttonText="Open Notifications"
+                onClick={() => router.push("/notifications")}
               />
             </DashboardSection>
-          )}
-        </div>
-      </main>
-    </>
+
+            {showManagerTools && (
+              <DashboardSection
+                title="Management Tools"
+                headingId="management-tools-heading"
+                sectionStyle={styles.section}
+                titleStyle={styles.sectionTitle}
+                gridStyle={styles.cardGrid}
+              >
+                <DashboardCard
+                  styles={styles}
+                  title="Employees"
+                  value="Team"
+                  text="View employee records, roles, and account status."
+                  buttonText="Manage Employees"
+                  onClick={() => router.push("/employees")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="Time Entries"
+                  value="Review"
+                  text="Review clock-ins, clock-outs, and shift history."
+                  buttonText="View Time Entries"
+                  onClick={() => router.push("/time-entries")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="Reports"
+                  value="Reports"
+                  text="Generate weekly reports and payroll exports."
+                  buttonText="Open Reports"
+                  onClick={() => router.push("/reports")}
+                />
+              </DashboardSection>
+            )}
+
+            {showAdminTools && (
+              <DashboardSection
+                title="Admin Tools"
+                headingId="admin-tools-heading"
+                sectionStyle={styles.section}
+                titleStyle={styles.sectionTitle}
+                gridStyle={styles.cardGrid}
+              >
+                <DashboardCard
+                  styles={styles}
+                  title="Audit Logs"
+                  value="Security"
+                  text="Review authentication events and system activity."
+                  buttonText="View Audit Logs"
+                  onClick={() => router.push("/audit-logs")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="System Health"
+                  value="Planned"
+                  text="Monitor database, RabbitMQ, and backend health."
+                  buttonText="Coming Soon"
+                  disabled
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="Maintenance"
+                  value="Planned"
+                  text="Track cron jobs, cleanup tasks, and rotation history."
+                  buttonText="Coming Soon"
+                  disabled
+                />
+              </DashboardSection>
+            )}
+          </div>
+        </main>
+      </>
+    </DashboardErrorBoundary>
   );
 }
 
