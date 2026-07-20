@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar.jsx";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
+import DashboardCard from "../../components/DashboardCard";
+import DashboardSection from "../../components/DashboardSection";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -133,177 +135,195 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <section>
-            <h2 style={styles.sectionTitle}>My Shift Overview</h2>
+          <DashboardSection
+            title="My Shift Overview"
+            sectionStyle={styles.section}
+            titleStyle={styles.sectionTitle}
+            gridStyle={styles.cardGrid}
+          >
+            <DashboardCard
+              styles={styles}
+              title="Current Status"
+              value={isClockedIn ? "Clocked In" : "Clocked Out"}
+              text={
+                isClockedIn
+                  ? "You currently have an active shift."
+                  : "You are not currently clocked in."
+              }
+              buttonText={isClockedIn ? "Clock Out" : "Clock In"}
+              onClick={() => router.push("/clock")}
+              highlight={isClockedIn ? "success" : "neutral"}
+            />
 
-            <div style={styles.cardGrid}>
-              <DashboardCard
-                title="Current Status"
-                value={isClockedIn ? "Clocked In" : "Clocked Out"}
-                text={
-                  isClockedIn
-                    ? "You currently have an active shift."
-                    : "You are not currently clocked in."
-                }
-                buttonText={isClockedIn ? "Clock Out" : "Clock In"}
-                onClick={() => router.push("/clock")}
-                highlight={isClockedIn ? "success" : "neutral"}
-              />
+            <DashboardCard
+              styles={styles}
+              title="Today's Hours"
+              value={
+                todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
+              }
+              text="Total closed shift hours for today."
+              buttonText="View Time History"
+              onClick={() => router.push("/time-history")}
+            />
 
-              <DashboardCard
-                title="Today's Hours"
-                value={
-                  todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
-                }
-                text="Total closed shift hours for today."
-                buttonText="View Time History"
-                onClick={() => router.push("/time-history")}
-              />
+            <DashboardCard
+              styles={styles}
+              title="Weekly Hours"
+              value={
+                weeklySummary?.total_hours > 0
+                  ? `${weeklySummary.total_hours} hrs`
+                  : "No hours this week"
+              }
+              text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
+              buttonText="Weekly Summary"
+              onClick={() => router.push("/weekly-summary")}
+            />
 
-              <DashboardCard
-                title="Weekly Hours"
-                value={
-                  weeklySummary?.total_hours > 0
-                    ? `${weeklySummary.total_hours} hrs`
-                    : "No hours this week"
-                }
-                text={`${weeklySummary?.total_shifts || 0} closed shifts this week.`}
-                buttonText="Weekly Summary"
-                onClick={() => router.push("/weekly-summary")}
-              />
+            <DashboardCard
+              styles={styles}
+              title="Overtime"
+              value={`${weeklySummary?.overtime_hours || 0} hrs`}
+              text="Estimated overtime above 40 hours."
+              buttonText="View Weekly Summary"
+              onClick={() => router.push("/weekly-summary")}
+            />
+          </DashboardSection>
 
-              <DashboardCard
-                title="Overtime"
-                value={`${weeklySummary?.overtime_hours || 0} hrs`}
-                text="Estimated overtime above 40 hours."
-                buttonText="View Weekly Summary"
-                onClick={() => router.push("/weekly-summary")}
-              />
-            </div>
-          </section>
+          <DashboardSection
+            title="Shift Details"
+            sectionStyle={styles.section}
+            titleStyle={styles.sectionTitle}
+            gridStyle={styles.cardGrid}
+          >
+            <DashboardCard
+              styles={styles}
+              title="Current Shift"
+              value={
+                lastEntry
+                  ? lastEntry.status === "open"
+                    ? "Clocked In"
+                    : "Clocked Out"
+                  : "No activity yet"
+              }
+              text={
+                currentEntry?.clock_in
+                  ? `Started on ${new Date(
+                      currentEntry.clock_in,
+                    ).toLocaleDateString()}`
+                  : "No active shift right now."
+              }
+              buttonText="Open Clock Center"
+              onClick={() => router.push("/clock")}
+            />
 
-          <section>
-            <h2 style={styles.sectionTitle}>Shift Details</h2>
+            <DashboardCard
+              styles={styles}
+              title="Last Clock Event"
+              value={
+                lastEntry
+                  ? lastEntry.status === "open"
+                    ? "Clocked In"
+                    : "Clocked Out"
+                  : "None"
+              }
+              text={
+                lastEntry
+                  ? new Date(lastEntry.clock_in).toLocaleString()
+                  : "No time entries found."
+              }
+              buttonText="View History"
+              onClick={() => router.push("/time-history")}
+            />
 
-            <div style={styles.cardGrid}>
-              <DashboardCard
-                title="Current Shift"
-                value={
-                  lastEntry
-                    ? lastEntry.status === "open"
-                      ? "Clocked In"
-                      : "Clocked Out"
-                    : "No activity yet"
-                }
-                text={
-                  currentEntry?.clock_in
-                    ? `Started on ${new Date(
-                        currentEntry.clock_in,
-                      ).toLocaleDateString()}`
-                    : "No active shift right now."
-                }
-                buttonText="Open Clock Center"
-                onClick={() => router.push("/clock")}
-              />
+            <DashboardCard
+              styles={styles}
+              title="My Profile"
+              value={employee.email}
+              text={`${employee.first_name} ${employee.last_name}`}
+              buttonText="Open Profile"
+              onClick={() => router.push("/profile")}
+            />
 
-              <DashboardCard
-                title="Last Clock Event"
-                value={
-                  lastEntry
-                    ? lastEntry.status === "open"
-                      ? "Clocked In"
-                      : "Clocked Out"
-                    : "None"
-                }
-                text={
-                  lastEntry
-                    ? new Date(lastEntry.clock_in).toLocaleString()
-                    : "No time entries found."
-                }
-                buttonText="View History"
-                onClick={() => router.push("/time-history")}
-              />
-
-              <DashboardCard
-                title="My Profile"
-                value={employee.email}
-                text={`${employee.first_name} ${employee.last_name}`}
-                buttonText="Open Profile"
-                onClick={() => router.push("/profile")}
-              />
-
-              <DashboardCard
-                title="Notifications"
-                value="Inbox"
-                text="View system alerts, reminders, and messages."
-                buttonText="Open Notifications"
-                onClick={() => router.push("/notifications")}
-              />
-            </div>
-          </section>
+            <DashboardCard
+              styles={styles}
+              title="Notifications"
+              value="Inbox"
+              text="View system alerts, reminders, and messages."
+              buttonText="Open Notifications"
+              onClick={() => router.push("/notifications")}
+            />
+          </DashboardSection>
 
           {showManagerTools && (
-            <section>
-              <h2 style={styles.sectionTitle}>Management Tools</h2>
+            <DashboardSection
+              title="Management Tools"
+              sectionStyle={styles.section}
+              titleStyle={styles.sectionTitle}
+              gridStyle={styles.cardGrid}
+            >
+              <DashboardCard
+                styles={styles}
+                title="Employees"
+                value="Team"
+                text="View employee records, roles, and account status."
+                buttonText="Manage Employees"
+                onClick={() => router.push("/employees")}
+              />
 
-              <div style={styles.cardGrid}>
-                <DashboardCard
-                  title="Employees"
-                  value="Team"
-                  text="View employee records, roles, and account status."
-                  buttonText="Manage Employees"
-                  onClick={() => router.push("/employees")}
-                />
+              <DashboardCard
+                styles={styles}
+                title="Time Entries"
+                value="Review"
+                text="Review clock-ins, clock-outs, and shift history."
+                buttonText="View Time Entries"
+                onClick={() => router.push("/time-entries")}
+              />
 
-                <DashboardCard
-                  title="Time Entries"
-                  value="Review"
-                  text="Review clock-ins, clock-outs, and shift history."
-                  buttonText="View Time Entries"
-                  onClick={() => router.push("/time-entries")}
-                />
-
-                <DashboardCard
-                  title="Reports"
-                  value="Reports"
-                  text="Generate weekly reports and payroll exports."
-                  buttonText="Open Reports"
-                  onClick={() => router.push("/reports")}
-                />
-              </div>
-            </section>
+              <DashboardCard
+                styles={styles}
+                title="Reports"
+                value="Reports"
+                text="Generate weekly reports and payroll exports."
+                buttonText="Open Reports"
+                onClick={() => router.push("/reports")}
+              />
+            </DashboardSection>
           )}
 
           {showAdminTools && (
-            <section>
-              <h2 style={styles.sectionTitle}>Admin Tools</h2>
+            <DashboardSection
+              title="Admin Tools"
+              sectionStyle={styles.section}
+              titleStyle={styles.sectionTitle}
+              gridStyle={styles.cardGrid}
+            >
+              <DashboardCard
+                styles={styles}
+                title="Audit Logs"
+                value="Security"
+                text="Review authentication events and system activity."
+                buttonText="View Audit Logs"
+                onClick={() => router.push("/audit-logs")}
+              />
 
-              <div style={styles.cardGrid}>
-                <DashboardCard
-                  title="Audit Logs"
-                  value="Security"
-                  text="Review authentication events and system activity."
-                  buttonText="View Audit Logs"
-                  onClick={() => router.push("/audit-logs")}
-                />
+              <DashboardCard
+                styles={styles}
+                title="System Health"
+                value="Planned"
+                text="Monitor database, RabbitMQ, and backend health."
+                buttonText="Coming Soon"
+                disabled
+              />
 
-                <DashboardCard
-                  title="System Health"
-                  value="Planned"
-                  text="Monitor database, RabbitMQ, and backend health."
-                  buttonText="Coming Soon"
-                  disabled
-                />
-
-                <DashboardCard
-                  title="Maintenance"
-                  value="Planned"
-                  text="Track cron jobs, cleanup tasks, and rotation history."
-                  buttonText="Coming Soon"
-                  disabled
-                />
-              </div>
-            </section>
+              <DashboardCard
+                styles={styles}
+                title="Maintenance"
+                value="Planned"
+                text="Track cron jobs, cleanup tasks, and rotation history."
+                buttonText="Coming Soon"
+                disabled
+              />
+            </DashboardSection>
           )}
         </div>
       </main>
@@ -311,42 +331,6 @@ export default function DashboardPage() {
   );
 }
 
-function DashboardCard({
-  title,
-  value,
-  text,
-  buttonText,
-  onClick,
-  highlight = "default",
-  disabled = false,
-}) {
-  const highlightStyle =
-    highlight === "success"
-      ? styles.successValue
-      : highlight === "neutral"
-        ? styles.neutralValue
-        : styles.cardValue;
-
-  return (
-    <div style={styles.card}>
-      <p style={styles.cardLabel}>{title}</p>
-      <h3 style={highlightStyle}>{value}</h3>
-      <p style={styles.cardText}>{text}</p>
-
-      <button
-        style={{
-          ...styles.button,
-          backgroundColor: disabled ? "#9CA3AF" : "#0A4DA2",
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-        onClick={disabled ? undefined : onClick}
-        disabled={disabled}
-      >
-        {buttonText}
-      </button>
-    </div>
-  );
-}
 const styles = {
   page: {
     minHeight: "100vh",
@@ -390,6 +374,10 @@ const styles = {
     fontSize: "16px",
     margin: 0,
     overflowWrap: "anywhere",
+  },
+
+  section: {
+    width: "100%",
   },
 
   sectionTitle: {
