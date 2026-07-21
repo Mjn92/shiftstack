@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
+
 import { AuthContext } from "../context/AuthContext";
+import { canAccessAdmin, canAccessManagement } from "../utils/roleAccess";
+
 import "./navbar.css";
 
 export default function Navbar() {
@@ -12,28 +15,36 @@ export default function Navbar() {
 
   const { employee, logout } = useContext(AuthContext);
 
-  const isManager = employee?.role === "manager";
-  const isAdmin = employee?.role === "admin";
-  const canManage = isManager || isAdmin;
+  const canManage = canAccessManagement(employee?.role);
+  const canViewAdmin = canAccessAdmin(employee?.role);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      router.replace("/login");
+    }
   };
 
-  const getLinkStyle = (path) => ({
-    backgroundColor: pathname === path ? "#2563EB" : "#1F2937",
-    color: "white",
-    padding: "10px 14px",
-    borderRadius: "8px",
-    textDecoration: "none",
-    fontWeight: pathname === path ? "bold" : "normal",
-    boxShadow: pathname === path ? "0 0 12px rgba(37, 99, 235, 0.6)" : "none",
-    border: pathname === path ? "1px solid #60A5FA" : "1px solid transparent",
-    transition: "all 0.2s ease",
-    whiteSpace: "nowrap",
-    fontSize: "14px",
-  });
+  const getLinkStyle = (path) => {
+    const isActive =
+      pathname === path ||
+      (path !== "/dashboard" && pathname?.startsWith(`${path}/`));
+
+    return {
+      backgroundColor: isActive ? "#2563EB" : "#1F2937",
+      color: "white",
+      padding: "10px 14px",
+      borderRadius: "8px",
+      textDecoration: "none",
+      fontWeight: isActive ? "bold" : "normal",
+      boxShadow: isActive ? "0 0 12px rgba(37, 99, 235, 0.6)" : "none",
+      border: isActive ? "1px solid #60A5FA" : "1px solid transparent",
+      transition: "all 0.2s ease",
+      whiteSpace: "nowrap",
+      fontSize: "14px",
+    };
+  };
 
   const employeeLinks = [
     { href: "/dashboard", label: "Dashboard" },
@@ -70,6 +81,7 @@ export default function Navbar() {
               href={link.href}
               className="navbar-link"
               style={getLinkStyle(link.href)}
+              aria-current={pathname === link.href ? "page" : undefined}
             >
               {link.label}
             </Link>
@@ -84,6 +96,7 @@ export default function Navbar() {
                 href={link.href}
                 className="navbar-link"
                 style={getLinkStyle(link.href)}
+                aria-current={pathname === link.href ? "page" : undefined}
               >
                 {link.label}
               </Link>
@@ -91,7 +104,7 @@ export default function Navbar() {
           </NavGroup>
         )}
 
-        {isAdmin && (
+        {canViewAdmin && (
           <NavGroup title="Admin">
             {adminLinks.map((link) => (
               <Link
@@ -99,6 +112,7 @@ export default function Navbar() {
                 href={link.href}
                 className="navbar-link"
                 style={getLinkStyle(link.href)}
+                aria-current={pathname === link.href ? "page" : undefined}
               >
                 {link.label}
               </Link>
