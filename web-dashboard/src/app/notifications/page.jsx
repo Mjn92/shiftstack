@@ -2,7 +2,8 @@
 
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "../../components/Navbar.jsx";
+import AppShell from "../../components/app-shell/AppShell";
+import PageHeader from "../../components/app-shell/PageHeader";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
 
@@ -69,34 +70,36 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   return (
-    <>
-      <Navbar />
+    <AppShell>
+      <div style={styles.page}>
+        <PageHeader
+          eyebrow="Inbox"
+          title="Notifications"
+          description={`You have ${unreadCount} unread notification${
+            unreadCount === 1 ? "" : "s"
+          }.`}
+          actions={
+            <>
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={loadNotifications}
+                disabled={pageLoading}
+              >
+                Refresh
+              </button>
 
-      <main style={styles.page}>
-        <section style={styles.header}>
-          <h1 style={styles.title}>Notifications</h1>
-          <p style={styles.subtitle}>
-            You have {unreadCount} unread notification
-            {unreadCount === 1 ? "" : "s"}.
-          </p>
-        </section>
-
-        <section style={styles.actions}>
-          <button
-            style={styles.secondaryButton}
-            onClick={() => router.push("/dashboard")}
-          >
-            Back to Dashboard
-          </button>
-
-          <button style={styles.secondaryButton} onClick={loadNotifications}>
-            Refresh
-          </button>
-
-          <button style={styles.secondaryButton} onClick={markAllRead}>
-            Mark All Read
-          </button>
-        </section>
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={markAllRead}
+                disabled={pageLoading || unreadCount === 0}
+              >
+                Mark All Read
+              </button>
+            </>
+          }
+        />
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -150,16 +153,16 @@ export default function NotificationsPage() {
             ))}
           </div>
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
 
 const styles = {
   page: {
-    minHeight: "100vh",
-    backgroundColor: "#EAF3FF",
-    padding: "32px",
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto",
   },
   header: {
     marginBottom: "24px",

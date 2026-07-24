@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useState } from "react";
-import Navbar from "../../components/Navbar";
+import { useRouter } from "next/navigation";
+import AppShell from "../../components/app-shell/AppShell";
+import PageHeader from "../../components/app-shell/PageHeader";
 import api from "../../api/api";
 import { AuthContext } from "../../context/AuthContext";
-import { useRouter } from "next/navigation";
 import { canAccessManagement } from "../../utils/roleAccess";
 
 export default function EmployeesPage() {
@@ -43,7 +44,10 @@ export default function EmployeesPage() {
   };
 
   const allowedRoleOptions = () => {
-    if (currentUser?.role === "admin") return ["employee", "manager", "admin"];
+    if (currentUser?.role === "admin") {
+      return ["employee", "manager", "admin"];
+    }
+
     return ["employee"];
   };
 
@@ -57,6 +61,7 @@ export default function EmployeesPage() {
       phone: "",
       department: "",
     });
+
     setEditingEmployee(null);
     setFormOpen(false);
   };
@@ -67,7 +72,6 @@ export default function EmployeesPage() {
       setError("");
 
       const response = await api.get("/admin/employees");
-
       setEmployees(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load employees.");
@@ -80,6 +84,7 @@ export default function EmployeesPage() {
     setError("");
     setMessage("");
     setEditingEmployee(null);
+
     setForm({
       first_name: "",
       last_name: "",
@@ -89,6 +94,7 @@ export default function EmployeesPage() {
       phone: "",
       department: "",
     });
+
     setFormOpen(true);
   };
 
@@ -96,6 +102,7 @@ export default function EmployeesPage() {
     setError("");
     setMessage("");
     setEditingEmployee(emp);
+
     setForm({
       first_name: emp.first_name || "",
       last_name: emp.last_name || "",
@@ -105,18 +112,22 @@ export default function EmployeesPage() {
       phone: emp.phone || "",
       department: emp.department || "",
     });
+
     setFormOpen(true);
   };
 
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     setError("");
     setMessage("");
     setSaving(true);
@@ -125,6 +136,7 @@ export default function EmployeesPage() {
       if (editingEmployee) {
         const payload = { ...form };
         delete payload.password;
+
         await api.put(`/admin/employees/${editingEmployee.id}`, payload);
         setMessage("Employee updated successfully.");
       } else {
@@ -147,11 +159,16 @@ export default function EmployeesPage() {
       return;
     }
 
-    if (!confirm("Are you sure you want to deactivate this account?")) return;
+    const confirmed = window.confirm(
+      `Deactivate ${emp.first_name} ${emp.last_name}?`,
+    );
+
+    if (!confirmed) return;
 
     try {
       setError("");
       setMessage("");
+
       await api.patch(`/admin/employees/${emp.id}/deactivate`);
       setMessage("Employee deactivated successfully.");
       await loadEmployees();
@@ -164,6 +181,7 @@ export default function EmployeesPage() {
     try {
       setError("");
       setMessage("");
+
       await api.patch(`/admin/employees/${id}/activate`);
       setMessage("Employee activated successfully.");
       await loadEmployees();
@@ -196,13 +214,24 @@ export default function EmployeesPage() {
     );
   };
 
-  const filteredEmployees = employees.filter((emp) => {
-    const searchText = `${emp.first_name || ""} ${emp.last_name || ""} ${
-      emp.email || ""
-    } ${emp.department || ""}`.toLowerCase();
+  const normalizedSearch = search.trim().toLowerCase();
 
-    const matchesSearch = searchText.includes(search.toLowerCase());
+  const filteredEmployees = employees.filter((emp) => {
+    const searchText = [
+      emp.first_name,
+      emp.last_name,
+      emp.email,
+      emp.department,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      normalizedSearch === "" || searchText.includes(normalizedSearch);
+
     const matchesRole = roleFilter === "all" || emp.role === roleFilter;
+
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && isActive(emp.active)) ||
@@ -240,28 +269,24 @@ export default function EmployeesPage() {
   }
 
   return (
-    <>
-      <Navbar />
+    <AppShell>
+      <div style={styles.page}>
+        <PageHeader
+          eyebrow="Management"
+          title="User Management"
+          description="Add, edit, activate, and deactivate employee accounts."
+          actions={
+            <button
+              type="button"
+              onClick={openCreateForm}
+              style={styles.primaryButton}
+            >
+              Add Employee
+            </button>
+          }
+        />
 
-      <main style={styles.page}>
-        <div style={styles.pageHeader}>
-          <div>
-            <h1 style={styles.pageTitle}>User Management</h1>
-            <p style={styles.pageSubtitle}>
-              Add, edit, activate, and deactivate employee accounts.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={openCreateForm}
-            style={styles.primaryButton}
-          >
-            Add Employee
-          </button>
-        </div>
-
-        <section style={styles.statsGrid}>
+        <section style={styles.statsGrid} aria-label="Employee account totals">
           <StatCard label="Employees" value={stats.employees} />
           <StatCard label="Managers" value={stats.managers} />
           <StatCard label="Admins" value={stats.admins} />
@@ -269,91 +294,143 @@ export default function EmployeesPage() {
           <StatCard label="Inactive" value={stats.inactive} />
         </section>
 
-        {message && <div style={styles.successMessage}>{message}</div>}
-        {error && <div style={styles.errorMessage}>{error}</div>}
+        {message && (
+          <div style={styles.successMessage} role="status" aria-live="polite">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div style={styles.errorMessage} role="alert">
+            {error}
+          </div>
+        )}
 
         {formOpen && (
           <form onSubmit={handleSubmit} style={styles.formCard}>
-            <h2 style={styles.formTitle}>
-              {editingEmployee ? "Edit Employee" : "Add Employee"}
-            </h2>
+            <div style={styles.formHeader}>
+              <div>
+                <p style={styles.formEyebrow}>
+                  {editingEmployee ? "Update account" : "New account"}
+                </p>
+
+                <h2 style={styles.formTitle}>
+                  {editingEmployee ? "Edit Employee" : "Add Employee"}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={resetForm}
+                disabled={saving}
+                style={styles.closeButton}
+                aria-label="Close employee form"
+              >
+                ×
+              </button>
+            </div>
 
             <div style={styles.formGrid}>
-              <input
-                name="first_name"
-                value={form.first_name}
-                onChange={handleChange}
-                placeholder="First Name"
-                style={styles.input}
-                required
-              />
-
-              <input
-                name="last_name"
-                value={form.last_name}
-                onChange={handleChange}
-                placeholder="Last Name"
-                style={styles.input}
-                required
-              />
-
-              <input
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="Email"
-                type="email"
-                style={styles.input}
-                required
-              />
-
-              {!editingEmployee && (
+              <FormField label="First name" htmlFor="first_name">
                 <input
-                  name="password"
-                  value={form.password}
+                  id="first_name"
+                  name="first_name"
+                  value={form.first_name}
                   onChange={handleChange}
-                  placeholder="Temporary Password"
-                  type="password"
+                  placeholder="First name"
                   style={styles.input}
                   required
                 />
+              </FormField>
+
+              <FormField label="Last name" htmlFor="last_name">
+                <input
+                  id="last_name"
+                  name="last_name"
+                  value={form.last_name}
+                  onChange={handleChange}
+                  placeholder="Last name"
+                  style={styles.input}
+                  required
+                />
+              </FormField>
+
+              <FormField label="Email" htmlFor="email">
+                <input
+                  id="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="employee@example.com"
+                  type="email"
+                  style={styles.input}
+                  required
+                />
+              </FormField>
+
+              {!editingEmployee && (
+                <FormField label="Temporary password" htmlFor="password">
+                  <input
+                    id="password"
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder="Temporary password"
+                    type="password"
+                    style={styles.input}
+                    required
+                  />
+                </FormField>
               )}
 
-              <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-                style={styles.input}
-              >
-                {allowedRoleOptions().map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
+              <FormField label="Role" htmlFor="role">
+                <select
+                  id="role"
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                  style={styles.input}
+                >
+                  {allowedRoleOptions().map((role) => (
+                    <option key={role} value={role}>
+                      {formatRole(role)}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
 
-              <input
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                placeholder="Phone"
-                style={styles.input}
-              />
+              <FormField label="Phone" htmlFor="phone">
+                <input
+                  id="phone"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="Phone number"
+                  type="tel"
+                  style={styles.input}
+                />
+              </FormField>
 
-              <input
-                name="department"
-                value={form.department}
-                onChange={handleChange}
-                placeholder="Department"
-                style={styles.input}
-              />
+              <FormField label="Department" htmlFor="department">
+                <input
+                  id="department"
+                  name="department"
+                  value={form.department}
+                  onChange={handleChange}
+                  placeholder="Department"
+                  style={styles.input}
+                />
+              </FormField>
             </div>
 
             <div style={styles.formActions}>
               <button
                 type="submit"
                 disabled={saving}
-                style={styles.primaryButton}
+                style={{
+                  ...styles.primaryButton,
+                  ...(saving ? styles.disabledButton : {}),
+                }}
               >
                 {saving
                   ? "Saving..."
@@ -374,171 +451,223 @@ export default function EmployeesPage() {
           </form>
         )}
 
-        <section style={styles.tableCard}>
-          <div style={styles.filters}>
-            <input
-              type="text"
-              placeholder="Search by name, email, or department..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={styles.searchInput}
-            />
+        <section
+          style={styles.tableCard}
+          aria-labelledby="employee-table-title"
+        >
+          <div style={styles.tableToolbar}>
+            <div>
+              <p style={styles.tableEyebrow}>Directory</p>
+              <h2 id="employee-table-title" style={styles.tableTitle}>
+                Employee Accounts
+              </h2>
+              <p style={styles.tableSubtitle}>
+                Showing {filteredEmployees.length} of {employees.length}{" "}
+                accounts.
+              </p>
+            </div>
 
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              style={styles.filterSelect}
-            >
-              <option value="all">All Roles</option>
-              <option value="employee">Employees</option>
-              <option value="manager">Managers</option>
-              <option value="admin">Admins</option>
-            </select>
+            <div style={styles.filters}>
+              <input
+                type="search"
+                aria-label="Search employees"
+                placeholder="Search name, email, or department"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                style={styles.searchInput}
+              />
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={styles.filterSelect}
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              <select
+                aria-label="Filter employees by role"
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
+                style={styles.filterSelect}
+              >
+                <option value="all">All Roles</option>
+                <option value="employee">Employees</option>
+                <option value="manager">Managers</option>
+                <option value="admin">Admins</option>
+              </select>
+
+              <select
+                aria-label="Filter employees by status"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                style={styles.filterSelect}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
           </div>
 
           {loading ? (
-            <div style={styles.loadingState}>Loading employees...</div>
+            <div style={styles.loadingState} role="status" aria-live="polite">
+              Loading employees...
+            </div>
           ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.tableHeaderRow}>
-                  <th style={styles.headerCell}>Name</th>
-                  <th style={styles.headerCell}>Email</th>
-                  <th style={styles.headerCell}>Role</th>
-                  <th style={styles.headerCell}>Department</th>
-                  <th style={styles.headerCell}>Phone</th>
-                  <th style={styles.headerCell}>Status</th>
-                  <th style={styles.headerCell}>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredEmployees.length === 0 ? (
-                  <tr>
-                    <td style={styles.emptyState} colSpan="7">
-                      No employees found.
-                    </td>
+            <div style={styles.tableWrapper}>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={styles.tableHeaderRow}>
+                    <th style={styles.headerCell}>Name</th>
+                    <th style={styles.headerCell}>Email</th>
+                    <th style={styles.headerCell}>Role</th>
+                    <th style={styles.headerCell}>Department</th>
+                    <th style={styles.headerCell}>Phone</th>
+                    <th style={styles.headerCell}>Status</th>
+                    <th style={styles.headerCell}>Actions</th>
                   </tr>
-                ) : (
-                  filteredEmployees.map((emp, index) => (
-                    <tr
-                      key={emp.id}
-                      style={{
-                        backgroundColor:
-                          index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
-                      }}
-                    >
-                      <td style={styles.cell}>
-                        {emp.first_name} {emp.last_name}
-                      </td>
+                </thead>
 
-                      <td style={styles.cell}>{emp.email}</td>
-
-                      <td style={styles.cell}>
-                        <span
-                          style={{
-                            ...styles.roleBadge,
-                            backgroundColor: getRoleColor(emp.role),
-                          }}
-                        >
-                          {emp.role}
-                        </span>
-                      </td>
-
-                      <td style={styles.cell}>{emp.department || "-"}</td>
-                      <td style={styles.cell}>{emp.phone || "-"}</td>
-
-                      <td style={styles.cell}>
-                        <span
-                          style={{
-                            ...styles.statusBadge,
-                            backgroundColor: isActive(emp.active)
-                              ? "#16A34A"
-                              : "#6B7280",
-                          }}
-                        >
-                          {isActive(emp.active) ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-
-                      <td style={styles.cell}>
-                        {emp.id === currentUser?.id ? (
-                          <span style={styles.currentUserLabel}>
-                            Current User
-                          </span>
-                        ) : (
-                          <div style={styles.actionGroup}>
-                            {canEditRole(emp.role) && (
-                              <button
-                                type="button"
-                                onClick={() => openEditForm(emp)}
-                                style={styles.editButton}
-                              >
-                                Edit
-                              </button>
-                            )}
-
-                            {canEditRole(emp.role) &&
-                              (isActive(emp.active) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeactivate(emp)}
-                                  style={styles.deactivateButton}
-                                >
-                                  Deactivate
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleActivate(emp.id)}
-                                  style={styles.activateButton}
-                                >
-                                  Activate
-                                </button>
-                              ))}
-                          </div>
-                        )}
+                <tbody>
+                  {filteredEmployees.length === 0 ? (
+                    <tr>
+                      <td style={styles.emptyState} colSpan={7}>
+                        No employees match the current filters.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredEmployees.map((emp, index) => (
+                      <tr
+                        key={emp.id}
+                        style={{
+                          backgroundColor:
+                            index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
+                        }}
+                      >
+                        <td style={styles.cell}>
+                          <div style={styles.employeeIdentity}>
+                            <span style={styles.employeeAvatar}>
+                              {getInitials(emp)}
+                            </span>
+
+                            <span style={styles.employeeName}>
+                              {emp.first_name} {emp.last_name}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td style={styles.cell}>{emp.email}</td>
+
+                        <td style={styles.cell}>
+                          <span
+                            style={{
+                              ...styles.roleBadge,
+                              backgroundColor: getRoleColor(emp.role),
+                            }}
+                          >
+                            {emp.role}
+                          </span>
+                        </td>
+
+                        <td style={styles.cell}>{emp.department || "—"}</td>
+                        <td style={styles.cell}>{emp.phone || "—"}</td>
+
+                        <td style={styles.cell}>
+                          <span
+                            style={{
+                              ...styles.statusBadge,
+                              backgroundColor: isActive(emp.active)
+                                ? "#16A34A"
+                                : "#6B7280",
+                            }}
+                          >
+                            {isActive(emp.active) ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+
+                        <td style={styles.cell}>
+                          {emp.id === currentUser?.id ? (
+                            <span style={styles.currentUserLabel}>
+                              Current User
+                            </span>
+                          ) : (
+                            <div style={styles.actionGroup}>
+                              {canEditRole(emp.role) && (
+                                <button
+                                  type="button"
+                                  onClick={() => openEditForm(emp)}
+                                  style={styles.editButton}
+                                >
+                                  Edit
+                                </button>
+                              )}
+
+                              {canEditRole(emp.role) &&
+                                (isActive(emp.active) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeactivate(emp)}
+                                    style={styles.deactivateButton}
+                                  >
+                                    Deactivate
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleActivate(emp.id)}
+                                    style={styles.activateButton}
+                                  >
+                                    Activate
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
 
 function StatCard({ label, value }) {
   return (
-    <div style={styles.statCard}>
+    <article style={styles.statCard}>
       <p style={styles.statLabel}>{label}</p>
       <p style={styles.statValue}>{value}</p>
-    </div>
+    </article>
   );
+}
+
+function FormField({ label, htmlFor, children }) {
+  return (
+    <label htmlFor={htmlFor} style={styles.field}>
+      <span style={styles.fieldLabel}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function formatRole(role) {
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+function getInitials(employee) {
+  const first = employee.first_name?.charAt(0) || "";
+  const last = employee.last_name?.charAt(0) || "";
+
+  return `${first}${last}`.toUpperCase() || "SS";
 }
 
 const styles = {
   permissionPage: {
     minHeight: "100vh",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#F4F7FB",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "32px",
   },
+
   permissionCard: {
     backgroundColor: "#FFFFFF",
     color: "#0A4DA2",
@@ -549,94 +678,157 @@ const styles = {
     fontWeight: "bold",
     textAlign: "center",
   },
+
   page: {
-    minHeight: "100vh",
-    backgroundColor: "#EAF3FF",
-    padding: "32px",
+    width: "100%",
+    maxWidth: "1440px",
+    margin: "0 auto",
   },
-  pageHeader: {
-    marginBottom: "24px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "16px",
-  },
-  pageTitle: {
-    color: "#0A4DA2",
-    fontSize: "36px",
-    fontWeight: "bold",
-    marginBottom: "8px",
-  },
-  pageSubtitle: {
-    color: "#6B7280",
-    fontSize: "16px",
-  },
+
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
     gap: "16px",
     marginBottom: "24px",
   },
+
   statCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: "18px",
     padding: "20px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
     border: "1px solid #DCEBFF",
   },
+
   statLabel: {
-    color: "#6B7280",
+    color: "#64748B",
     fontSize: "14px",
-    marginBottom: "8px",
+    margin: "0 0 8px",
   },
+
   statValue: {
     color: "#0A4DA2",
     fontSize: "32px",
     fontWeight: "bold",
+    margin: 0,
   },
+
   tableCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: "20px",
     overflow: "hidden",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
     border: "1px solid #DCEBFF",
   },
-  filters: {
+
+  tableToolbar: {
     padding: "20px",
     display: "flex",
-    gap: "12px",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    gap: "20px",
     borderBottom: "1px solid #E5E7EB",
     flexWrap: "wrap",
   },
+
+  tableEyebrow: {
+    color: "#2563EB",
+    fontSize: "12px",
+    fontWeight: "bold",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    margin: "0 0 4px",
+  },
+
+  tableTitle: {
+    color: "#172033",
+    fontSize: "22px",
+    margin: 0,
+  },
+
+  tableSubtitle: {
+    color: "#64748B",
+    fontSize: "14px",
+    margin: "6px 0 0",
+  },
+
+  filters: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+
   searchInput: {
+    width: "min(100%, 330px)",
+    minWidth: "240px",
     padding: "12px",
     borderRadius: "10px",
     border: "1px solid #CBD5E1",
-    minWidth: "320px",
+    font: "inherit",
   },
+
   filterSelect: {
     padding: "12px",
     borderRadius: "10px",
     border: "1px solid #CBD5E1",
+    backgroundColor: "#FFFFFF",
+    font: "inherit",
   },
+
+  tableWrapper: {
+    width: "100%",
+    overflowX: "auto",
+  },
+
   table: {
     width: "100%",
+    minWidth: "980px",
     borderCollapse: "collapse",
   },
+
   tableHeaderRow: {
     backgroundColor: "#0A4DA2",
     color: "#FFFFFF",
   },
+
   headerCell: {
     padding: "16px",
     textAlign: "left",
     fontWeight: "bold",
+    whiteSpace: "nowrap",
   },
+
   cell: {
     padding: "16px",
     borderBottom: "1px solid #E5E7EB",
     color: "#111827",
+    verticalAlign: "middle",
   },
+
+  employeeIdentity: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  employeeAvatar: {
+    display: "grid",
+    placeItems: "center",
+    width: "34px",
+    height: "34px",
+    borderRadius: "50%",
+    backgroundColor: "#DBEAFE",
+    color: "#1D4ED8",
+    fontSize: "12px",
+    fontWeight: "bold",
+    flex: "0 0 auto",
+  },
+
+  employeeName: {
+    fontWeight: "bold",
+    whiteSpace: "nowrap",
+  },
+
   roleBadge: {
     color: "#FFFFFF",
     padding: "6px 12px",
@@ -646,6 +838,7 @@ const styles = {
     textTransform: "uppercase",
     display: "inline-block",
   },
+
   statusBadge: {
     color: "#FFFFFF",
     padding: "6px 12px",
@@ -655,24 +848,34 @@ const styles = {
     textTransform: "uppercase",
     display: "inline-block",
   },
+
   primaryButton: {
     backgroundColor: "#0A4DA2",
     color: "#FFFFFF",
     border: "none",
     borderRadius: "10px",
     padding: "12px 18px",
+    minHeight: "44px",
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   secondaryButton: {
     backgroundColor: "#E5E7EB",
     color: "#111827",
     border: "none",
     borderRadius: "10px",
     padding: "12px 18px",
+    minHeight: "44px",
     fontWeight: "bold",
     cursor: "pointer",
   },
+
+  disabledButton: {
+    cursor: "not-allowed",
+    opacity: 0.65,
+  },
+
   editButton: {
     backgroundColor: "#2563EB",
     color: "#FFFFFF",
@@ -682,6 +885,7 @@ const styles = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   deactivateButton: {
     backgroundColor: "#DC2626",
     color: "#FFFFFF",
@@ -691,6 +895,7 @@ const styles = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   activateButton: {
     backgroundColor: "#16A34A",
     color: "#FFFFFF",
@@ -700,43 +905,97 @@ const styles = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   actionGroup: {
     display: "flex",
     gap: "8px",
+    flexWrap: "wrap",
   },
+
   currentUserLabel: {
-    color: "#6B7280",
+    color: "#64748B",
     fontWeight: "bold",
   },
+
   formCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: "20px",
     padding: "24px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
     border: "1px solid #DCEBFF",
     marginBottom: "24px",
   },
+
+  formHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "16px",
+    marginBottom: "20px",
+  },
+
+  formEyebrow: {
+    color: "#2563EB",
+    fontSize: "12px",
+    fontWeight: "bold",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    margin: "0 0 4px",
+  },
+
   formTitle: {
-    color: "#0A4DA2",
+    color: "#172033",
     fontSize: "24px",
     fontWeight: "bold",
-    marginBottom: "16px",
+    margin: 0,
   },
+
+  closeButton: {
+    width: "42px",
+    height: "42px",
+    border: "1px solid #CBD5E1",
+    borderRadius: "10px",
+    backgroundColor: "#FFFFFF",
+    color: "#475569",
+    cursor: "pointer",
+    fontSize: "24px",
+    lineHeight: 1,
+  },
+
   formGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: "16px",
   },
+
+  field: {
+    display: "grid",
+    gap: "7px",
+    color: "#334155",
+    fontWeight: "bold",
+  },
+
+  fieldLabel: {
+    fontSize: "14px",
+  },
+
   input: {
+    width: "100%",
     padding: "12px",
     borderRadius: "10px",
     border: "1px solid #CBD5E1",
+    backgroundColor: "#FFFFFF",
+    font: "inherit",
+    fontWeight: "normal",
   },
+
   formActions: {
     display: "flex",
     gap: "12px",
     marginTop: "20px",
+    flexWrap: "wrap",
   },
+
   successMessage: {
     backgroundColor: "#DCFCE7",
     color: "#166534",
@@ -745,6 +1004,7 @@ const styles = {
     borderRadius: "12px",
     marginBottom: "16px",
   },
+
   errorMessage: {
     backgroundColor: "#FEE2E2",
     color: "#991B1B",
@@ -753,14 +1013,16 @@ const styles = {
     borderRadius: "12px",
     marginBottom: "16px",
   },
+
   loadingState: {
     padding: "40px",
     textAlign: "center",
-    color: "#6B7280",
+    color: "#64748B",
   },
+
   emptyState: {
     padding: "40px",
     textAlign: "center",
-    color: "#6B7280",
+    color: "#64748B",
   },
 };

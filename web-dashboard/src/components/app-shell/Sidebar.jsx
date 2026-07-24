@@ -1,0 +1,243 @@
+"use client";
+
+import Link from "next/link";
+import { useContext } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Bell,
+  CalendarDays,
+  ClipboardList,
+  Clock3,
+  FileBarChart,
+  History,
+  LayoutDashboard,
+  LogOut,
+  ScrollText,
+  Settings,
+  ShieldCheck,
+  UserRound,
+  Users,
+} from "lucide-react";
+
+import { AuthContext } from "../../context/AuthContext";
+import { canAccessAdmin, canAccessManagement } from "../../utils/roleAccess";
+
+const employeeLinks = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/clock",
+    label: "Clock Center",
+    icon: Clock3,
+  },
+  {
+    href: "/time-history",
+    label: "Time History",
+    icon: History,
+  },
+  {
+    href: "/weekly-summary",
+    label: "Weekly Summary",
+    icon: CalendarDays,
+  },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    icon: Bell,
+  },
+  {
+    href: "/profile",
+    label: "My Profile",
+    icon: UserRound,
+  },
+];
+
+const managementLinks = [
+  {
+    href: "/employees",
+    label: "Employees",
+    icon: Users,
+  },
+  {
+    href: "/time-entries",
+    label: "Time Entries",
+    icon: ClipboardList,
+  },
+  {
+    href: "/reports",
+    label: "Reports",
+    icon: FileBarChart,
+  },
+];
+
+const adminLinks = [
+  {
+    href: "/audit-logs",
+    label: "Audit Logs",
+    icon: ScrollText,
+  },
+];
+
+export default function Sidebar({ mobile = false, onNavigate }) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const { employee, logout } = useContext(AuthContext);
+
+  const showManagement = canAccessManagement(employee?.role);
+  const showAdmin = canAccessAdmin(employee?.role);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      onNavigate?.();
+      router.replace("/login");
+    }
+  };
+
+  return (
+    <aside
+      className={
+        mobile
+          ? "app-sidebar app-sidebar--mobile"
+          : "app-sidebar app-sidebar--desktop"
+      }
+      aria-label={mobile ? "Mobile navigation" : "Primary navigation"}
+    >
+      <div className="app-sidebar__brand">
+        <div className="app-sidebar__logo" aria-hidden="true">
+          S
+        </div>
+
+        <div>
+          <p className="app-sidebar__brand-name">ShiftStack</p>
+          <p className="app-sidebar__brand-description">Workforce Management</p>
+        </div>
+      </div>
+
+      <div className="app-sidebar__user">
+        <div className="app-sidebar__avatar" aria-hidden="true">
+          {getInitials(employee)}
+        </div>
+
+        <div className="app-sidebar__user-details">
+          <p className="app-sidebar__user-name">
+            {employee
+              ? `${employee.first_name} ${employee.last_name}`
+              : "ShiftStack User"}
+          </p>
+
+          <p className="app-sidebar__user-role">
+            <ShieldCheck size={14} aria-hidden="true" />
+            {formatRole(employee?.role)}
+          </p>
+        </div>
+      </div>
+
+      <nav className="app-sidebar__navigation">
+        <NavigationSection
+          title="Employee"
+          links={employeeLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
+
+        {showManagement && (
+          <NavigationSection
+            title="Management"
+            links={managementLinks}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
+        )}
+
+        {showAdmin && (
+          <NavigationSection
+            title="Administration"
+            links={adminLinks}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
+        )}
+      </nav>
+
+      <div className="app-sidebar__footer">
+        <Link
+          href="/profile"
+          className="app-sidebar__footer-link"
+          onClick={onNavigate}
+        >
+          <Settings size={18} aria-hidden="true" />
+          Account Settings
+        </Link>
+
+        <button
+          type="button"
+          className="app-sidebar__logout"
+          onClick={handleLogout}
+          aria-label="Log out of ShiftStack"
+        >
+          <LogOut size={18} aria-hidden="true" />
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function NavigationSection({ title, links, pathname, onNavigate }) {
+  return (
+    <section className="app-sidebar__section">
+      <h2 className="app-sidebar__section-title">{title}</h2>
+
+      <div className="app-sidebar__links">
+        {links.map((link) => {
+          const Icon = link.icon;
+
+          const active =
+            pathname === link.href ||
+            (link.href !== "/dashboard" &&
+              pathname?.startsWith(`${link.href}/`));
+
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={onNavigate}
+              className={`app-sidebar__link${
+                active ? " app-sidebar__link--active" : ""
+              }`}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon size={19} aria-hidden="true" />
+              <span>{link.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function getInitials(employee) {
+  if (!employee) {
+    return "SS";
+  }
+
+  const firstInitial = employee.first_name?.charAt(0) || "";
+  const lastInitial = employee.last_name?.charAt(0) || "";
+
+  return `${firstInitial}${lastInitial}`.toUpperCase() || "SS";
+}
+
+function formatRole(role) {
+  if (!role) {
+    return "Employee";
+  }
+
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
