@@ -1,34 +1,49 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Bell,
+  CalendarClock,
+  Clock3,
+  History,
+  RefreshCw,
+  Timer,
+  UserRound,
+} from "lucide-react";
+
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
-import { AuthContext } from "../../context/AuthContext";
-import api from "../../api/api";
+import DashboardErrorBoundary from "../../components/DashboardErrorBoundary";
 import DashboardCard from "../../components/DashboardCard";
 import DashboardSection from "../../components/DashboardSection";
-import "./dashboard.css";
-import DashboardErrorBoundary from "../../components/DashboardErrorBoundary";
+import DashboardStatCard from "../../components/dashboard/DashboardStatCard";
+import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
+import RecentActivity from "../../components/dashboard/RecentActivity";
+import WeeklyProgress from "../../components/dashboard/WeeklyProgress";
+import { AuthContext } from "../../context/AuthContext";
+import api from "../../api/api";
 import {
-  formatDashboardDate,
-  getTodayEntries,
   calculateTotalMinutes,
+  formatDashboardDate,
   formatHours,
   getLastEntry,
-  isManager,
+  getTodayEntries,
   isAdmin,
+  isManager,
 } from "../../utils/dashboardHelpers";
+import "./dashboard.css";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { employee, loading } = useContext(AuthContext);
+  const { employee, loading: authLoading } = useContext(AuthContext);
 
   const [clockStatus, setClockStatus] = useState(null);
   const [entries, setEntries] = useState([]);
   const [weeklySummary, setWeeklySummary] = useState(null);
   const [error, setError] = useState("");
   const [pageLoading, setPageLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -42,45 +57,42 @@ export default function DashboardPage() {
           api.get("/time/my-weekly-summary"),
         ]);
 
-      const statusData =
+      setClockStatus(
         statusResponse?.data && typeof statusResponse.data === "object"
           ? statusResponse.data
-          : null;
+          : null,
+      );
 
-      const entriesData = Array.isArray(entriesResponse?.data)
-        ? entriesResponse.data
-        : [];
+      setEntries(
+        Array.isArray(entriesResponse?.data) ? entriesResponse.data : [],
+      );
 
-      const weeklyData =
+      setWeeklySummary(
         weeklyResponse?.data &&
-        typeof weeklyResponse.data === "object" &&
-        !Array.isArray(weeklyResponse.data)
+          typeof weeklyResponse.data === "object" &&
+          !Array.isArray(weeklyResponse.data)
           ? weeklyResponse.data
-          : null;
-
-      setClockStatus(statusData);
-      setEntries(entriesData);
-      setWeeklySummary(weeklyData);
+          : null,
+      );
     } catch (err) {
       console.error("Dashboard load error:", err);
 
-      const errorMessage =
+      setError(
         err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        "Could not load your dashboard data. Please try again.";
-
-      setError(errorMessage);
+          err.response?.data?.message ||
+          err.message ||
+          "Could not load your dashboard data. Please try again.",
+      );
     } finally {
       setPageLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!loading && !employee) {
+    if (!authLoading && !employee) {
       router.replace("/login");
     }
-  }, [loading, employee, router]);
+  }, [authLoading, employee, router]);
 
   useEffect(() => {
     if (employee) {
@@ -89,18 +101,59 @@ export default function DashboardPage() {
     }
   }, [employee, loadDashboardData]);
 
-  if (loading || !employee) {
-    return (
-      <main style={styles.loadingPage}>
-        <div
-          style={styles.loadingCard}
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <h1 style={styles.loadingTitle}>Loading ShiftStack...</h1>
+  useEffect(() => {
+    if (!clockStatus?.clocked_in) {
+      return undefined;
+    }
 
-          <p style={styles.loadingText}>
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [clockStatus?.clocked_in]);
+
+  const dashboardData = useMemo(() => {
+    const todayDate = new Date();
+    const todaysEntries = getTodayEntries(entries, todayDate);
+    const completedTodayEntries = todaysEntries.filter(
+      (entry) => entry.status !== "open" && entry.clock_out,
+    );
+
+    const todaysMinutes = calculateTotalMinutes(completedTodayEntries);
+    const totalWeeklyHours = Number(weeklySummary?.total_hours) || 0;
+    const totalWeeklyShifts = Number(weeklySummary?.total_shifts) || 0;
+    const overtimeHours = Number(weeklySummary?.overtime_hours) || 0;
+
+    const completedEntries = entries.filter(
+      (entry) => entry.status !== "open" && entry.clock_out,
+    );
+
+    return {
+      today: formatDashboardDate(todayDate),
+      todaysMinutes,
+      todaysHours: formatHours(todaysMinutes),
+      totalWeeklyHours,
+      totalWeeklyShifts,
+      overtimeHours,
+      completedShiftCount: completedEntries.length,
+      lastEntry: getLastEntry(entries),
+      recentEntries: [...entries]
+        .sort(
+          (a, b) =>
+            new Date(b.clock_in || 0).getTime() -
+            new Date(a.clock_in || 0).getTime(),
+        )
+        .slice(0, 5),
+    };
+  }, [entries, weeklySummary]);
+
+  if (authLoading || !employee) {
+    return (
+      <main style={styles.authLoadingPage}>
+        <div style={styles.authLoadingCard} role="status" aria-live="polite">
+          <h1 style={styles.authLoadingTitle}>Loading ShiftStack...</h1>
+          <p style={styles.authLoadingText}>
             Checking your session and dashboard access.
           </p>
         </div>
@@ -108,55 +161,56 @@ export default function DashboardPage() {
     );
   }
 
-  const todayDate = new Date();
-
-  const today = formatDashboardDate(todayDate);
-  const todaysEntries = getTodayEntries(entries, todayDate);
-  const completedTodayEntries = todaysEntries.filter(
-    (entry) => entry.status !== "open" && entry.clock_out,
-  );
-  const todaysMinutes = calculateTotalMinutes(completedTodayEntries);
-  const todaysHours = formatHours(todaysMinutes);
-  const lastEntry = getLastEntry(entries);
-
-  const hasEntries = entries.length > 0;
-
-  const totalWeeklyHours = Number(weeklySummary?.total_hours) || 0;
-
-  const totalWeeklyShifts = Number(weeklySummary?.total_shifts) || 0;
-
-  const overtimeHours = Number(weeklySummary?.overtime_hours) || 0;
-
-  const showManagerTools = isManager(employee.role);
-  const showAdminTools = isAdmin(employee.role);
-  const isClockedIn = clockStatus?.clocked_in;
+  const isClockedIn = Boolean(clockStatus?.clocked_in);
   const currentEntry = clockStatus?.current_entry;
+
   const currentShiftDuration = getCurrentShiftDuration(
     isClockedIn,
     currentEntry?.clock_in,
+    currentTime,
   );
+
+  const weeklyProgressPercentage = Math.min(
+    (dashboardData.totalWeeklyHours / 40) * 100,
+    100,
+  );
+
+  const showManagerTools = isManager(employee.role);
+  const showAdminTools = isAdmin(employee.role);
+
+  const currentStatusDescription = isClockedIn
+    ? `Active for ${currentShiftDuration}`
+    : "Ready for your next shift";
 
   return (
     <DashboardErrorBoundary>
       <AppShell>
         <div style={styles.container}>
           <PageHeader
-            eyebrow={`${employee.role || "employee"} workspace`}
+            eyebrow={`${formatRole(employee.role)} workspace`}
             title={`Welcome back, ${employee.first_name || "there"}`}
-            description={`${today} · Review your current shift, weekly hours, and recent activity.`}
+            description={`${dashboardData.today} · Review your shift, hours, and latest activity.`}
             actions={
               <button
                 type="button"
                 className="dashboard-refresh-button"
                 style={{
                   ...styles.refreshButton,
-                  ...(pageLoading ? styles.refreshButtonDisabled : {}),
+                  ...(pageLoading ? styles.disabledButton : {}),
                 }}
                 onClick={loadDashboardData}
                 disabled={pageLoading}
                 aria-label="Refresh dashboard data"
                 aria-busy={pageLoading}
               >
+                <RefreshCw
+                  size={17}
+                  aria-hidden="true"
+                  style={{
+                    ...styles.buttonIcon,
+                    ...(pageLoading ? styles.spinningIcon : {}),
+                  }}
+                />
                 {pageLoading ? "Refreshing..." : "Refresh Dashboard"}
               </button>
             }
@@ -164,7 +218,10 @@ export default function DashboardPage() {
 
           {error && (
             <div style={styles.error} role="alert">
-              <p style={styles.errorText}>{error}</p>
+              <div>
+                <strong>Dashboard data could not be loaded.</strong>
+                <p style={styles.errorText}>{error}</p>
+              </div>
 
               <button
                 type="button"
@@ -177,222 +234,205 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
-          {pageLoading && (
-            <div
-              style={styles.info}
-              role="status"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              Loading your latest shift, weekly summary, and activity data...
-            </div>
-          )}
 
-          <DashboardSection
-            title="My Shift Overview"
-            headingId="shift-overview-heading"
-            sectionStyle={styles.section}
-            titleStyle={styles.sectionTitle}
-            gridStyle={styles.cardGrid}
-          >
-            <DashboardCard
-              styles={styles}
-              title="Current Status"
-              value={isClockedIn ? "Clocked In" : "Clocked Out"}
-              text={
-                isClockedIn
-                  ? "You currently have an active shift."
-                  : "You are not currently clocked in."
-              }
-              buttonText={isClockedIn ? "Clock Out" : "Clock In"}
-              onClick={() => router.push("/clock")}
-              highlight={isClockedIn ? "success" : "neutral"}
-            />
+          {pageLoading ? (
+            <DashboardSkeleton />
+          ) : (
+            <>
+              <section style={styles.statGrid} aria-label="Shift overview">
+                <DashboardStatCard
+                  icon={Clock3}
+                  label="Current Status"
+                  value={isClockedIn ? "Clocked In" : "Clocked Out"}
+                  description={currentStatusDescription}
+                  badge={isClockedIn ? "Active" : "Off shift"}
+                  tone={isClockedIn ? "success" : "neutral"}
+                  onClick={() => router.push("/clock")}
+                />
 
-            <DashboardCard
-              styles={styles}
-              title="Today's Hours"
-              value={
-                todaysMinutes > 0 ? `${todaysHours} hrs` : "No hours today"
-              }
-              text={
-                hasEntries
-                  ? "Total closed shift hours recorded for today."
-                  : "Your worked hours will appear after your first completed shift."
-              }
-              buttonText="View Time History"
-              onClick={() => router.push("/time-history")}
-            />
+                <DashboardStatCard
+                  icon={Timer}
+                  label="Today's Hours"
+                  value={
+                    dashboardData.todaysMinutes > 0
+                      ? `${dashboardData.todaysHours} hrs`
+                      : "0.00 hrs"
+                  }
+                  description="Completed shift time recorded today"
+                  badge={`${getTodayEntries(entries, new Date()).length} entries`}
+                  onClick={() => router.push("/time-history")}
+                />
 
-            <DashboardCard
-              styles={styles}
-              title="Weekly Hours"
-              value={
-                totalWeeklyHours > 0
-                  ? `${totalWeeklyHours} hrs`
-                  : "No hours this week"
-              }
-              text={
-                totalWeeklyShifts > 0
-                  ? `${totalWeeklyShifts} closed ${
-                      totalWeeklyShifts === 1 ? "shift" : "shifts"
-                    } this week.`
-                  : "No completed shifts have been recorded this week."
-              }
-              buttonText="Weekly Summary"
-              onClick={() => router.push("/weekly-summary")}
-            />
+                <DashboardStatCard
+                  icon={CalendarClock}
+                  label="Weekly Hours"
+                  value={`${dashboardData.totalWeeklyHours.toFixed(2)} hrs`}
+                  description={`${dashboardData.totalWeeklyShifts} completed ${
+                    dashboardData.totalWeeklyShifts === 1 ? "shift" : "shifts"
+                  } this week`}
+                  badge={`${Math.round(weeklyProgressPercentage)}% of 40 hrs`}
+                  onClick={() => router.push("/weekly-summary")}
+                />
 
-            <DashboardCard
-              styles={styles}
-              title="Overtime"
-              value={`${overtimeHours} hrs`}
-              text={
-                totalWeeklyHours > 40
-                  ? "Estimated overtime above 40 hours."
-                  : "No overtime has been recorded this week."
-              }
-              buttonText="View Weekly Summary"
-              onClick={() => router.push("/weekly-summary")}
-            />
-          </DashboardSection>
+                <DashboardStatCard
+                  icon={History}
+                  label="Completed Shifts"
+                  value={dashboardData.completedShiftCount}
+                  description="Total completed shifts in your history"
+                  badge={`${dashboardData.overtimeHours.toFixed(2)} overtime hrs`}
+                  onClick={() => router.push("/time-history")}
+                />
+              </section>
 
-          <DashboardSection
-            title="Shift Details"
-            headingId="shift-details-heading"
-            sectionStyle={styles.section}
-            titleStyle={styles.sectionTitle}
-            gridStyle={styles.cardGrid}
-          >
-            <DashboardCard
-              styles={styles}
-              title="Current Shift"
-              value={isClockedIn ? "Clocked In" : "No active shift"}
-              text={
-                currentEntry?.clock_in
-                  ? `Started ${new Date(
-                      currentEntry.clock_in,
-                    ).toLocaleString()} · ${currentShiftDuration}`
-                  : "Clock in to begin a new shift."
-              }
-              buttonText="Open Clock Center"
-              onClick={() => router.push("/clock")}
-              highlight={isClockedIn ? "success" : "neutral"}
-            />
+              <section style={styles.insightGrid}>
+                <WeeklyProgress
+                  totalHours={dashboardData.totalWeeklyHours}
+                  targetHours={40}
+                  percentage={weeklyProgressPercentage}
+                  totalShifts={dashboardData.totalWeeklyShifts}
+                  overtimeHours={dashboardData.overtimeHours}
+                  onViewDetails={() => router.push("/weekly-summary")}
+                />
 
-            <DashboardCard
-              styles={styles}
-              title="Last Clock Event"
-              value={
-                lastEntry
-                  ? lastEntry.status === "open"
-                    ? "Clocked In"
-                    : "Clocked Out"
-                  : "No activity yet"
-              }
-              text={
-                lastEntry?.clock_in
-                  ? new Date(lastEntry.clock_in).toLocaleString()
-                  : "Your most recent clock activity will appear here."
-              }
-              buttonText="View History"
-              onClick={() => router.push("/time-history")}
-            />
+                <RecentActivity
+                  entries={dashboardData.recentEntries}
+                  onViewAll={() => router.push("/time-history")}
+                />
+              </section>
 
-            <DashboardCard
-              styles={styles}
-              title="My Profile"
-              value={employee.email}
-              text={
-                `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
-                "Employee profile"
-              }
-              buttonText="Open Profile"
-              onClick={() => router.push("/profile")}
-            />
+              <DashboardSection
+                title="Quick Actions"
+                headingId="quick-actions-heading"
+                sectionStyle={styles.section}
+                titleStyle={styles.sectionTitle}
+                gridStyle={styles.cardGrid}
+              >
+                <DashboardCard
+                  styles={styles}
+                  title="Clock Center"
+                  value={isClockedIn ? currentShiftDuration : "Ready"}
+                  text={
+                    currentEntry?.clock_in
+                      ? `Shift started ${formatDateTime(currentEntry.clock_in)}.`
+                      : "Clock in when you are ready to begin your next shift."
+                  }
+                  buttonText={isClockedIn ? "Clock Out" : "Clock In"}
+                  onClick={() => router.push("/clock")}
+                  highlight={isClockedIn ? "success" : "neutral"}
+                />
 
-            <DashboardCard
-              styles={styles}
-              title="Notifications"
-              value="Inbox"
-              text="View system alerts, reminders, and messages."
-              buttonText="Open Notifications"
-              onClick={() => router.push("/notifications")}
-            />
-          </DashboardSection>
+                <DashboardCard
+                  styles={styles}
+                  title="Time History"
+                  value={
+                    dashboardData.lastEntry
+                      ? formatEntryStatus(dashboardData.lastEntry)
+                      : "No activity"
+                  }
+                  text={
+                    dashboardData.lastEntry?.clock_in
+                      ? `Latest event: ${formatDateTime(
+                          dashboardData.lastEntry.clock_in,
+                        )}`
+                      : "Your clock-in and clock-out records will appear here."
+                  }
+                  buttonText="View History"
+                  onClick={() => router.push("/time-history")}
+                />
 
-          {showManagerTools && (
-            <DashboardSection
-              title="Management Tools"
-              headingId="management-tools-heading"
-              sectionStyle={styles.section}
-              titleStyle={styles.sectionTitle}
-              gridStyle={styles.cardGrid}
-            >
-              <DashboardCard
-                styles={styles}
-                title="Employees"
-                value="Team"
-                text="View employee records, roles, and account status."
-                buttonText="Manage Employees"
-                onClick={() => router.push("/employees")}
-              />
+                <DashboardCard
+                  styles={styles}
+                  title="My Profile"
+                  value={employee.email || "Account"}
+                  text={getEmployeeName(employee)}
+                  buttonText="Open Profile"
+                  onClick={() => router.push("/profile")}
+                />
 
-              <DashboardCard
-                styles={styles}
-                title="Time Entries"
-                value="Review"
-                text="Review clock-ins, clock-outs, and shift history."
-                buttonText="View Time Entries"
-                onClick={() => router.push("/time-entries")}
-              />
+                <DashboardCard
+                  styles={styles}
+                  title="Notifications"
+                  value="Inbox"
+                  text="Review system alerts, reminders, and account messages."
+                  buttonText="Open Notifications"
+                  onClick={() => router.push("/notifications")}
+                />
+              </DashboardSection>
 
-              <DashboardCard
-                styles={styles}
-                title="Reports"
-                value="Reports"
-                text="Generate weekly reports and payroll exports."
-                buttonText="Open Reports"
-                onClick={() => router.push("/reports")}
-              />
-            </DashboardSection>
-          )}
+              {showManagerTools && (
+                <DashboardSection
+                  title="Management Tools"
+                  headingId="management-tools-heading"
+                  sectionStyle={styles.section}
+                  titleStyle={styles.sectionTitle}
+                  gridStyle={styles.cardGrid}
+                >
+                  <DashboardCard
+                    styles={styles}
+                    title="Employees"
+                    value="Team"
+                    text="View employee records, roles, and account status."
+                    buttonText="Manage Employees"
+                    onClick={() => router.push("/employees")}
+                  />
 
-          {showAdminTools && (
-            <DashboardSection
-              title="Admin Tools"
-              headingId="admin-tools-heading"
-              sectionStyle={styles.section}
-              titleStyle={styles.sectionTitle}
-              gridStyle={styles.cardGrid}
-            >
-              <DashboardCard
-                styles={styles}
-                title="Audit Logs"
-                value="Security"
-                text="Review authentication events and system activity."
-                buttonText="View Audit Logs"
-                onClick={() => router.push("/audit-logs")}
-              />
+                  <DashboardCard
+                    styles={styles}
+                    title="Time Entries"
+                    value="Review"
+                    text="Review employee clock-ins, clock-outs, and shift history."
+                    buttonText="View Time Entries"
+                    onClick={() => router.push("/time-entries")}
+                  />
 
-              <DashboardCard
-                styles={styles}
-                title="System Health"
-                value="Planned"
-                text="Monitor database, RabbitMQ, and backend health."
-                buttonText="Coming Soon"
-                disabled
-              />
+                  <DashboardCard
+                    styles={styles}
+                    title="Reports"
+                    value="Payroll"
+                    text="Generate weekly reports and payroll-ready CSV exports."
+                    buttonText="Open Reports"
+                    onClick={() => router.push("/reports")}
+                  />
+                </DashboardSection>
+              )}
 
-              <DashboardCard
-                styles={styles}
-                title="Maintenance"
-                value="Planned"
-                text="Track cron jobs, cleanup tasks, and rotation history."
-                buttonText="Coming Soon"
-                disabled
-              />
-            </DashboardSection>
+              {showAdminTools && (
+                <DashboardSection
+                  title="Administration"
+                  headingId="admin-tools-heading"
+                  sectionStyle={styles.section}
+                  titleStyle={styles.sectionTitle}
+                  gridStyle={styles.cardGrid}
+                >
+                  <DashboardCard
+                    styles={styles}
+                    title="Audit Logs"
+                    value="Security"
+                    text="Review authentication events and system activity."
+                    buttonText="View Audit Logs"
+                    onClick={() => router.push("/audit-logs")}
+                  />
+
+                  <DashboardCard
+                    styles={styles}
+                    title="System Health"
+                    value="Planned"
+                    text="Monitor database, messaging, and backend availability."
+                    buttonText="Coming Soon"
+                    disabled
+                  />
+
+                  <DashboardCard
+                    styles={styles}
+                    title="Maintenance"
+                    value="Planned"
+                    text="Track cleanup jobs, scheduled work, and rotation history."
+                    buttonText="Coming Soon"
+                    disabled
+                  />
+                </DashboardSection>
+              )}
+            </>
           )}
         </div>
       </AppShell>
@@ -400,7 +440,11 @@ export default function DashboardPage() {
   );
 }
 
-function getCurrentShiftDuration(isClockedIn, clockInValue) {
+function getCurrentShiftDuration(
+  isClockedIn,
+  clockInValue,
+  currentTime = Date.now(),
+) {
   if (!isClockedIn || !clockInValue) {
     return "No active shift";
   }
@@ -413,7 +457,7 @@ function getCurrentShiftDuration(isClockedIn, clockInValue) {
 
   const elapsedMinutes = Math.max(
     0,
-    Math.floor((Date.now() - startedAt.getTime()) / 60000),
+    Math.floor((currentTime - startedAt.getTime()) / 60000),
   );
 
   const hours = Math.floor(elapsedMinutes / 60);
@@ -430,11 +474,97 @@ function getCurrentShiftDuration(isClockedIn, clockInValue) {
   return `${hours} hr${hours === 1 ? "" : "s"} ${minutes} min`;
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return "Unknown time";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown time";
+  }
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatEntryStatus(entry) {
+  return entry?.status === "open" || !entry?.clock_out
+    ? "Clocked In"
+    : "Clocked Out";
+}
+
+function getEmployeeName(employee) {
+  const fullName = `${employee?.first_name || ""} ${
+    employee?.last_name || ""
+  }`.trim();
+
+  return fullName || "Employee profile";
+}
+
+function formatRole(role) {
+  if (!role) {
+    return "Employee";
+  }
+
+  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+}
+
 const styles = {
+  authLoadingPage: {
+    minHeight: "100vh",
+    backgroundColor: "#EAF3FF",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "clamp(16px, 3vw, 32px)",
+  },
+
+  authLoadingCard: {
+    width: "min(100%, 460px)",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "20px",
+    padding: "clamp(24px, 4vw, 32px)",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    border: "1px solid #DCEBFF",
+    textAlign: "center",
+  },
+
+  authLoadingTitle: {
+    color: "#0A4DA2",
+    fontSize: "clamp(24px, 4vw, 28px)",
+    fontWeight: "bold",
+    margin: "0 0 8px",
+  },
+
+  authLoadingText: {
+    color: "#6B7280",
+    margin: 0,
+  },
+
   container: {
     width: "100%",
     maxWidth: "1400px",
     margin: "0 auto",
+  },
+
+  statGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+    gap: "18px",
+    marginBottom: "24px",
+  },
+
+  insightGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
+    gap: "20px",
+    marginBottom: "32px",
   },
 
   section: {
@@ -524,55 +654,11 @@ const styles = {
     overflowWrap: "anywhere",
   },
 
-  error: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    padding: "12px 16px",
-    borderRadius: "10px",
-    marginBottom: "16px",
-    overflowWrap: "anywhere",
-  },
-
-  loadingPage: {
-    minHeight: "100vh",
-    backgroundColor: "#EAF3FF",
-    display: "flex",
+  refreshButton: {
+    display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "clamp(16px, 3vw, 32px)",
-  },
-
-  loadingCard: {
-    width: "min(100%, 460px)",
-    backgroundColor: "#FFFFFF",
-    borderRadius: "20px",
-    padding: "clamp(24px, 4vw, 32px)",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-    border: "1px solid #DCEBFF",
-    textAlign: "center",
-  },
-
-  loadingTitle: {
-    color: "#0A4DA2",
-    fontSize: "clamp(24px, 4vw, 28px)",
-    fontWeight: "bold",
-    marginBottom: "8px",
-  },
-
-  loadingText: {
-    color: "#6B7280",
-  },
-
-  info: {
-    backgroundColor: "#DBEAFE",
-    color: "#1E40AF",
-    padding: "12px 16px",
-    borderRadius: "10px",
-    marginBottom: "16px",
-    overflowWrap: "anywhere",
-  },
-
-  refreshButton: {
+    gap: "8px",
     backgroundColor: "#FFFFFF",
     color: "#0A4DA2",
     border: "1px solid #0A4DA2",
@@ -581,20 +667,41 @@ const styles = {
     borderRadius: "10px",
     cursor: "pointer",
     fontWeight: "bold",
-    whiteSpace: "normal",
   },
 
-  refreshButtonDisabled: {
+  buttonIcon: {
+    flex: "0 0 auto",
+  },
+
+  spinningIcon: {
+    animation: "dashboard-spin 1s linear infinite",
+  },
+
+  disabledButton: {
     opacity: 0.65,
     cursor: "not-allowed",
   },
+
+  error: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "16px",
+    flexWrap: "wrap",
+    backgroundColor: "#FEE2E2",
+    color: "#991B1B",
+    border: "1px solid #FCA5A5",
+    padding: "14px 16px",
+    borderRadius: "12px",
+    marginBottom: "20px",
+  },
+
   errorText: {
-    margin: 0,
+    margin: "5px 0 0",
     lineHeight: 1.5,
   },
 
   errorRetryButton: {
-    marginTop: "12px",
     backgroundColor: "#991B1B",
     color: "#FFFFFF",
     border: "none",
