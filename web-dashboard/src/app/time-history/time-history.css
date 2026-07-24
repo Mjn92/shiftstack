@@ -1,0 +1,18 @@
+.time-history-desktop-table {
+  display: block;
+}
+
+.time-history-mobile-list {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .time-history-desktop-table {
+    display: none;
+  }
+
+  .time-history-mobile-list {
+    display: grid;
+    gap: 14px;
+  }
+}
