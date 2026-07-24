@@ -19,6 +19,7 @@ import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
+import "./time-history.css";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -503,7 +504,10 @@ export default function TimeHistoryPage() {
             </div>
           ) : (
             <>
-              <div style={styles.tableWrapper}>
+              <div
+                className="time-history-desktop-table"
+                style={styles.tableWrapper}
+              >
                 <table style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -573,6 +577,63 @@ export default function TimeHistoryPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div
+                className="time-history-mobile-list"
+                style={styles.mobileList}
+              >
+                {paginatedEntries.map((entry) => {
+                  const status = normalizeStatus(entry);
+
+                  return (
+                    <div key={entry.id} style={styles.mobileCard}>
+                      <div style={styles.mobileHeader}>
+                        <strong>{formatDate(entry.clock_in)}</strong>
+
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            ...(status === "open"
+                              ? styles.openBadge
+                              : styles.closedBadge),
+                          }}
+                        >
+                          {status}
+                        </span>
+                      </div>
+
+                      <div style={styles.mobileRow}>
+                        <span>Clock In</span>
+                        <strong>{formatDateTime(entry.clock_in)}</strong>
+                      </div>
+
+                      <div style={styles.mobileRow}>
+                        <span>Clock Out</span>
+                        <strong>
+                          {entry.clock_out
+                            ? formatDateTime(entry.clock_out)
+                            : "Open shift"}
+                        </strong>
+                      </div>
+
+                      <div style={styles.mobileRow}>
+                        <span>Worked Time</span>
+
+                        <span style={styles.hoursBadge}>
+                          {formatHours(entry.total_minutes)}
+                        </span>
+                      </div>
+
+                      <div style={styles.mobileRow}>
+                        <span>Entry ID</span>
+                        <code style={styles.entryId}>
+                          {entry.id ? `#${entry.id}` : "—"}
+                        </code>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div style={styles.pagination}>
@@ -1168,5 +1229,31 @@ const styles = {
     padding: "9px 13px",
     cursor: "pointer",
     fontWeight: "700",
+  },
+  mobileList: {
+    gap: "14px",
+  },
+
+  mobileCard: {
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #DCEBFF",
+    borderRadius: "16px",
+    padding: "18px",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+  },
+
+  mobileHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "14px",
+  },
+
+  mobileRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "8px 0",
+    borderBottom: "1px solid #EEF2F7",
   },
 };
