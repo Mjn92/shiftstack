@@ -295,36 +295,200 @@ const getMyWeeklySummary = async (req, res) => {
   try {
     const employeeId = req.user.id;
 
-    const result = await pool.query(
-      `
+    let weekStart = req.query.week_start;
+
+    if (weekStart) {
+      if (!isValidDateString(weekStart)) {
+        return res.status(400).json({
+          error: "week_start must use YYYY-MM-DD format.",
+        });
+      }
+
+      if (!isMondayDate(weekStart)) {
+        return res.status(400).json({
+          error: "week_start must be a Monday.",
+        });
+      }
+    } else {
+      weekStart = getCurrentMondayDate();
+    }
+
+    const currentMonday = getCurrentMondayDate();
+
+    if (weekStart > currentMonday) {
+      return res.status(400).json({
+        error: "Future weeks are not available.",
+      });
+    }
+
+    const weekEndExclusive = addDaysToDateString(weekStart, 7);
+    const weekEndInclusive = addDaysToDateString(weekStart, 6);
+
+    const summaryQuery = `
       SELECT
-        COUNT(*) AS total_shifts,
-        COALESCE(SUM(total_minutes), 0) AS total_minutes
+        COUNT(*)::integer AS total_shifts,
+
+        COALESCE(
+          SUM(total_minutes),
+          0
+        )::integer AS total_minutes,
+
+        COALESCE(
+          AVG(total_minutes),
+          0
+        )::numeric AS average_shift_minutes,
+
+        COALESCE(
+          MAX(total_minutes),
+          0
+        )::integer AS longest_shift_minutes
+
       FROM time_entries
       WHERE employee_id = $1
         AND status = 'closed'
-        AND clock_in >= date_trunc('week', CURRENT_DATE)
-        AND clock_in < date_trunc('week', CURRENT_DATE) + interval '7 days'
-      `,
-      [employeeId],
+        AND clock_out IS NOT NULL
+        AND clock_in >= $2::date
+        AND clock_in < $3::date
+    `;
+
+    const dailyQuery = `
+      WITH week_days AS (
+        SELECT generate_series(
+          $2::date,
+          $3::date - INTERVAL '1 day',
+          INTERVAL '1 day'
+        )::date AS work_date
+      ),
+
+      daily_entries AS (
+        SELECT
+          clock_in::date AS work_date,
+          COUNT(*)::integer AS shift_count,
+          COALESCE(SUM(total_minutes), 0)::integer AS total_minutes
+
+        FROM time_entries
+        WHERE employee_id = $1
+          AND status = 'closed'
+          AND clock_out IS NOT NULL
+          AND clock_in >= $2::date
+          AND clock_in < $3::date
+
+        GROUP BY clock_in::date
+      )
+
+      SELECT
+        TO_CHAR(week_days.work_date, 'YYYY-MM-DD') AS date,
+        TO_CHAR(week_days.work_date, 'FMDay') AS day_name,
+        COALESCE(daily_entries.shift_count, 0)::integer AS shift_count,
+        COALESCE(daily_entries.total_minutes, 0)::integer AS total_minutes
+
+      FROM week_days
+      LEFT JOIN daily_entries
+        ON daily_entries.work_date = week_days.work_date
+
+      ORDER BY week_days.work_date ASC
+    `;
+
+    const queryValues = [employeeId, weekStart, weekEndExclusive];
+
+    const [summaryResult, dailyResult] = await Promise.all([
+      pool.query(summaryQuery, queryValues),
+      pool.query(dailyQuery, queryValues),
+    ]);
+
+    const row = summaryResult.rows[0] || {};
+
+    const totalMinutes = Number(row.total_minutes || 0);
+    const regularMinutes = Math.min(totalMinutes, 40 * 60);
+    const overtimeMinutes = Math.max(totalMinutes - 40 * 60, 0);
+
+    const averageShiftMinutes = Number(
+      Number(row.average_shift_minutes || 0).toFixed(2),
     );
 
-    const totalMinutes = Number(result.rows[0].total_minutes || 0);
-    const totalHours = Number((totalMinutes / 60).toFixed(2));
-    const overtimeHours = Math.max(0, Number((totalHours - 40).toFixed(2)));
+    const longestShiftMinutes = Number(row.longest_shift_minutes || 0);
 
-    res.json({
-      total_shifts: Number(result.rows[0].total_shifts || 0),
+    const dailyBreakdown = dailyResult.rows.map((day) => {
+      const dailyMinutes = Number(day.total_minutes || 0);
+
+      return {
+        date: day.date,
+        day_name: day.day_name,
+        shift_count: Number(day.shift_count || 0),
+        total_minutes: dailyMinutes,
+        total_hours: minutesToHours(dailyMinutes),
+      };
+    });
+
+    return res.json({
+      week_start: weekStart,
+      week_end: weekEndInclusive,
+      is_current_week: weekStart === currentMonday,
+
+      total_shifts: Number(row.total_shifts || 0),
+
       total_minutes: totalMinutes,
-      total_hours: totalHours,
-      overtime_hours: overtimeHours,
-      week_start: new Date().toISOString(),
+      total_hours: minutesToHours(totalMinutes),
+
+      regular_minutes: regularMinutes,
+      regular_hours: minutesToHours(regularMinutes),
+
+      overtime_minutes: overtimeMinutes,
+      overtime_hours: minutesToHours(overtimeMinutes),
+
+      average_shift_minutes: averageShiftMinutes,
+      average_shift_hours: minutesToHours(averageShiftMinutes),
+
+      longest_shift_minutes: longestShiftMinutes,
+      longest_shift_hours: minutesToHours(longestShiftMinutes),
+
+      daily_breakdown: dailyBreakdown,
     });
   } catch (err) {
     console.error("Weekly summary error:", err);
-    res.status(500).json({ error: "Server error" });
+
+    return res.status(500).json({
+      error: "Could not load weekly summary.",
+    });
   }
 };
+
+function getCurrentMondayDate() {
+  const now = new Date();
+
+  const utcYear = now.getUTCFullYear();
+  const utcMonth = now.getUTCMonth();
+  const utcDate = now.getUTCDate();
+  const utcDay = now.getUTCDay();
+
+  const daysSinceMonday = utcDay === 0 ? 6 : utcDay - 1;
+
+  const monday = new Date(
+    Date.UTC(utcYear, utcMonth, utcDate - daysSinceMonday),
+  );
+
+  return monday.toISOString().slice(0, 10);
+}
+
+function isMondayDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+
+  return date.getUTCDay() === 1;
+}
+
+function addDaysToDateString(value, days) {
+  const date = new Date(`${value}T00:00:00Z`);
+
+  date.setUTCDate(date.getUTCDate() + days);
+
+  return date.toISOString().slice(0, 10);
+}
+
+function minutesToHours(minutes) {
+  const numericMinutes = Number(minutes) || 0;
+
+  return Number((numericMinutes / 60).toFixed(2));
+}
 
 function parsePositiveInteger(value, fallback) {
   if (value === undefined || value === null || value === "") {
