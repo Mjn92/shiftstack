@@ -1,195 +1,653 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "../../components/Navbar.jsx";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  Clock3,
+  Gauge,
+  History,
+  RotateCcw,
+  Timer,
+  TrendingUp,
+} from "lucide-react";
+
+import AppShell from "../../components/app-shell/AppShell";
+import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
+
+import "./weekly-summary.css";
 
 export default function WeeklySummaryPage() {
   const router = useRouter();
   const { employee, loading } = useContext(AuthContext);
 
   const [summary, setSummary] = useState(null);
+
+  const [selectedWeekStart, setSelectedWeekStart] =
+    useState(getCurrentMondayDate);
+
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const loadSummary = useCallback(async (weekStart) => {
+    try {
+      setPageLoading(true);
+      setError("");
+
+      const response = await api.get("/time/my-weekly-summary", {
+        params: {
+          week_start: weekStart,
+        },
+      });
+
+      const data =
+        response?.data &&
+        typeof response.data === "object" &&
+        !Array.isArray(response.data)
+          ? response.data
+          : {};
+
+      setSummary(data);
+    } catch (err) {
+      console.error("Weekly summary error:", err);
+
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Could not load your weekly summary. Please try again.",
+      );
+    } finally {
+      setPageLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!loading && !employee) {
-      router.push("/login");
+      router.replace("/login");
     }
   }, [loading, employee, router]);
 
   useEffect(() => {
     if (employee) {
-      // eslint-disable-next-line react-hooks/immutability
-      loadSummary();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadSummary(selectedWeekStart);
     }
-  }, [employee]);
-
-  const loadSummary = async () => {
-    try {
-      setPageLoading(true);
-      setError("");
-
-      const response = await api.get("/time/my-weekly-summary");
-      setSummary(response.data);
-    } catch (err) {
-      console.error("Weekly summary error:", err);
-      setError("Could not load weekly summary.");
-    } finally {
-      setPageLoading(false);
-    }
-  };
+  }, [employee, selectedWeekStart, loadSummary]);
 
   if (loading || !employee) {
-    return <p style={{ padding: "32px" }}>Loading...</p>;
+    return (
+      <main style={styles.loadingPage}>
+        <div style={styles.loadingSessionCard}>
+          <LoadingState message="Loading your weekly summary..." />
+        </div>
+      </main>
+    );
   }
 
+  const totalHours = safeNonNegativeNumber(summary?.total_hours);
+  const regularHours = safeNonNegativeNumber(summary?.regular_hours);
+  const overtimeHours = safeNonNegativeNumber(summary?.overtime_hours);
+  const totalShifts = Math.floor(safeNonNegativeNumber(summary?.total_shifts));
+
+  const averageShiftHours = safeNonNegativeNumber(summary?.average_shift_hours);
+
+  const longestShiftHours = safeNonNegativeNumber(summary?.longest_shift_hours);
+
+  const dailyBreakdown = Array.isArray(summary?.daily_breakdown)
+    ? summary.daily_breakdown
+    : [];
+
+  const weeklyProgress = Math.min((totalHours / 40) * 100, 100);
+
+  const remainingHours = Math.max(40 - totalHours, 0);
+
+  const hasWeeklyActivity = totalShifts > 0 || totalHours > 0;
+
+  const currentWeekStart = getCurrentMondayDate();
+
+  const isCurrentWeek = selectedWeekStart === currentWeekStart;
+
+  const nextWeekDisabled = isCurrentWeek || pageLoading;
+
+  const weekStart = summary?.week_start || selectedWeekStart;
+
+  const weekEnd =
+    summary?.week_end || addDaysToDateString(selectedWeekStart, 6);
+
+  const initialPageLoading = pageLoading && !summary;
+
+  const viewPreviousWeek = () => {
+    setSelectedWeekStart((current) => addDaysToDateString(current, -7));
+  };
+
+  const viewNextWeek = () => {
+    setSelectedWeekStart((current) => {
+      const nextWeek = addDaysToDateString(current, 7);
+
+      return nextWeek > currentWeekStart ? current : nextWeek;
+    });
+  };
+
+  const viewCurrentWeek = () => {
+    setSelectedWeekStart(currentWeekStart);
+  };
+
   return (
-    <>
-      <Navbar />
+    <AppShell>
+      <div style={styles.page}>
+        <PageHeader
+          eyebrow="Time Tracking"
+          title="Weekly Summary"
+          description={`Review your worked hours and shift activity for ${formatWeekRange(
+            weekStart,
+            weekEnd,
+          )}.`}
+          actions={
+            <>
+              <button
+                type="button"
+                className="weekly-summary-button weekly-summary-button--secondary"
+                onClick={() => router.push("/time-history")}
+              >
+                <History size={17} aria-hidden="true" />
+                Time History
+              </button>
 
-      <main style={styles.page}>
-        <section style={styles.header}>
-          <h1 style={styles.title}>Weekly Summary</h1>
-          <p style={styles.subtitle}>
-            Review your hours and shifts for the current week.
-          </p>
-        </section>
+              <button
+                type="button"
+                className="weekly-summary-button weekly-summary-button--primary"
+                onClick={() => loadSummary(selectedWeekStart)}
+                disabled={pageLoading}
+              >
+                <RotateCcw size={17} aria-hidden="true" />
 
-        <section style={styles.actions}>
-          <button
-            style={styles.secondaryButton}
-            onClick={() => router.push("/dashboard")}
-          >
-            Back to Dashboard
-          </button>
+                {pageLoading ? "Refreshing..." : "Refresh"}
+              </button>
+            </>
+          }
+        />
 
-          <button
-            style={styles.secondaryButton}
-            onClick={() => router.push("/time-history")}
-          >
-            Time History
-          </button>
-
-          <button style={styles.secondaryButton} onClick={loadSummary}>
-            Refresh
-          </button>
-        </section>
-
-        {error && <div style={styles.error}>{error}</div>}
-
-        {pageLoading ? (
-          <div style={styles.card}>Loading weekly summary...</div>
-        ) : (
-          <div style={styles.grid}>
-            <SummaryCard
-              title="Total Hours"
-              value={`${summary?.total_hours || 0} hrs`}
-              subtitle="Hours worked this week"
-            />
-
-            <SummaryCard
-              title="Total Shifts"
-              value={summary?.total_shifts || 0}
-              subtitle="Closed shifts this week"
-            />
-
-            <SummaryCard
-              title="Overtime"
-              value={`${summary?.overtime_hours || 0} hrs`}
-              subtitle="Hours over 40"
-            />
-
-            <SummaryCard
-              title="Total Minutes"
-              value={summary?.total_minutes || 0}
-              subtitle="Raw worked minutes"
+        {error && (
+          <div style={styles.messageWrapper}>
+            <ErrorState
+              message={error}
+              onRetry={
+                pageLoading ? undefined : () => loadSummary(selectedWeekStart)
+              }
             />
           </div>
         )}
-      </main>
-    </>
+
+        <section
+          className="weekly-navigation"
+          aria-label="Weekly summary navigation"
+        >
+          <button
+            type="button"
+            className="weekly-navigation__button"
+            onClick={viewPreviousWeek}
+            disabled={pageLoading}
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+            Previous Week
+          </button>
+
+          <div className="weekly-navigation__current">
+            <CalendarDays size={20} aria-hidden="true" />
+
+            <div>
+              <span>{isCurrentWeek ? "Current Week" : "Selected Week"}</span>
+
+              <strong>{formatWeekRange(weekStart, weekEnd)}</strong>
+            </div>
+          </div>
+
+          <div className="weekly-navigation__actions">
+            {!isCurrentWeek && (
+              <button
+                type="button"
+                className="weekly-navigation__today"
+                onClick={viewCurrentWeek}
+                disabled={pageLoading}
+              >
+                Current Week
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="weekly-navigation__button"
+              onClick={viewNextWeek}
+              disabled={nextWeekDisabled}
+            >
+              Next Week
+              <ArrowRight size={18} aria-hidden="true" />
+            </button>
+          </div>
+        </section>
+
+        {initialPageLoading ? (
+          <div style={styles.loadingCard}>
+            <LoadingState message="Loading weekly summary..." />
+          </div>
+        ) : (
+          <>
+            <section
+              className={`weekly-hero ${
+                overtimeHours > 0 ? "weekly-hero--overtime" : ""
+              }`}
+            >
+              <div className="weekly-hero__content">
+                <p className="weekly-hero__eyebrow">
+                  {isCurrentWeek ? "Current week" : "Selected week"}
+                </p>
+
+                <h2>{formatHours(totalHours)} worked</h2>
+
+                <p>
+                  {totalShifts} completed{" "}
+                  {totalShifts === 1 ? "shift" : "shifts"}
+                  {" · "}
+                  {formatHours(overtimeHours)} overtime
+                </p>
+              </div>
+
+              <div className="weekly-hero__progress">
+                <div className="weekly-hero__progress-header">
+                  <span>40-hour weekly target</span>
+
+                  <strong>{Math.round(weeklyProgress)}%</strong>
+                </div>
+
+                <div
+                  className="weekly-hero__progress-track"
+                  role="progressbar"
+                  aria-label="Weekly work hours"
+                  aria-valuemin="0"
+                  aria-valuemax="40"
+                  aria-valuenow={Math.min(totalHours, 40)}
+                >
+                  <span
+                    style={{
+                      width: `${weeklyProgress}%`,
+                    }}
+                  />
+                </div>
+
+                <p>
+                  {remainingHours > 0
+                    ? `${formatHours(remainingHours)} remaining`
+                    : overtimeHours > 0
+                      ? `${formatHours(overtimeHours)} above target`
+                      : "Weekly target reached"}
+                </p>
+              </div>
+            </section>
+
+            <section
+              className="weekly-stat-grid"
+              aria-label="Weekly summary statistics"
+            >
+              <WeeklyStatCard
+                icon={Clock3}
+                title="Total Hours"
+                value={formatHours(totalHours)}
+                description="Completed work for the selected week"
+                tone="primary"
+              />
+
+              <WeeklyStatCard
+                icon={CalendarDays}
+                title="Completed Shifts"
+                value={String(totalShifts)}
+                description="Closed shifts in the selected week"
+                tone="success"
+              />
+
+              <WeeklyStatCard
+                icon={Gauge}
+                title="Average Shift"
+                value={formatHours(averageShiftHours)}
+                description="Average completed shift duration"
+                tone="purple"
+              />
+
+              <WeeklyStatCard
+                icon={TrendingUp}
+                title="Longest Shift"
+                value={formatHours(longestShiftHours)}
+                description="Longest completed shift this week"
+                tone="warning"
+              />
+            </section>
+
+            <div className="weekly-analytics-grid">
+              <section
+                className="weekly-panel weekly-chart"
+                aria-labelledby="daily-hours-chart-heading"
+              >
+                <div className="weekly-panel__header">
+                  <div>
+                    <p className="weekly-panel__eyebrow">Daily activity</p>
+
+                    <h2 id="daily-hours-chart-heading">Hours by day</h2>
+                  </div>
+
+                  <Timer size={22} aria-hidden="true" />
+                </div>
+
+                {dailyBreakdown.length === 0 ? (
+                  <p className="weekly-panel__empty">
+                    Daily hour information is unavailable.
+                  </p>
+                ) : (
+                  <DailyHoursChart days={dailyBreakdown} />
+                )}
+              </section>
+
+              <section
+                className="weekly-panel weekly-breakdown"
+                aria-labelledby="hour-breakdown-heading"
+              >
+                <div className="weekly-panel__header">
+                  <div>
+                    <p className="weekly-panel__eyebrow">Hour breakdown</p>
+
+                    <h2 id="hour-breakdown-heading">Regular and overtime</h2>
+                  </div>
+
+                  <TrendingUp size={22} aria-hidden="true" />
+                </div>
+
+                <div className="weekly-breakdown__items">
+                  <HourBreakdownItem
+                    title="Regular Hours"
+                    value={regularHours}
+                    maximum={40}
+                    tone="regular"
+                  />
+
+                  <HourBreakdownItem
+                    title="Overtime Hours"
+                    value={overtimeHours}
+                    maximum={Math.max(overtimeHours, 10)}
+                    tone="overtime"
+                  />
+                </div>
+
+                <div className="weekly-breakdown__summary">
+                  <div>
+                    <span>Total worked</span>
+                    <strong>{formatHours(totalHours)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Remaining to 40</span>
+
+                    <strong>{formatHours(remainingHours)}</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {!hasWeeklyActivity && (
+              <section className="weekly-empty-state">
+                <CalendarDays size={34} aria-hidden="true" />
+
+                <h2>No completed shifts this week</h2>
+
+                <p>
+                  Completed shifts for this week will appear here after you
+                  clock out.
+                </p>
+
+                {isCurrentWeek && (
+                  <button type="button" onClick={() => router.push("/clock")}>
+                    Open Clock Center
+                  </button>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </div>
+    </AppShell>
   );
 }
 
-function SummaryCard({ title, value, subtitle }) {
+function WeeklyStatCard({ icon: Icon, title, value, description, tone }) {
   return (
-    <div style={styles.card}>
-      <p style={styles.cardLabel}>{title}</p>
-      <h2 style={styles.cardValue}>{value}</h2>
-      <p style={styles.cardSubtitle}>{subtitle}</p>
+    <article className="weekly-stat-card">
+      <div
+        className={`weekly-stat-card__icon weekly-stat-card__icon--${tone}`}
+        aria-hidden="true"
+      >
+        <Icon size={21} />
+      </div>
+
+      <p className="weekly-stat-card__title">{title}</p>
+
+      <strong className="weekly-stat-card__value">{value}</strong>
+
+      <p className="weekly-stat-card__description">{description}</p>
+    </article>
+  );
+}
+
+function DailyHoursChart({ days }) {
+  const largestDailyHours = Math.max(
+    8,
+    ...days.map((day) => safeNonNegativeNumber(day.total_hours)),
+  );
+
+  return (
+    <div className="daily-hours-chart">
+      {days.map((day) => {
+        const hours = safeNonNegativeNumber(day.total_hours);
+
+        const heightPercentage =
+          largestDailyHours > 0 ? (hours / largestDailyHours) * 100 : 0;
+
+        return (
+          <div className="daily-hours-chart__day" key={day.date}>
+            <div className="daily-hours-chart__value">
+              {hours > 0 ? hours.toFixed(2) : "0"}
+            </div>
+
+            <div className="daily-hours-chart__track">
+              <div
+                className="daily-hours-chart__bar"
+                style={{
+                  height: `${heightPercentage}%`,
+                }}
+                title={`${day.day_name}: ${hours.toFixed(2)} hours`}
+              />
+            </div>
+
+            <strong>{day.day_name?.slice(0, 3) || "Day"}</strong>
+
+            <span>
+              {Math.floor(safeNonNegativeNumber(day.shift_count))}{" "}
+              {Math.floor(safeNonNegativeNumber(day.shift_count)) === 1
+                ? "shift"
+                : "shifts"}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
+function HourBreakdownItem({ title, value, maximum, tone }) {
+  const safeValue = safeNonNegativeNumber(value);
+  const safeMaximum = safeNonNegativeNumber(maximum);
+
+  const progress = Math.min(
+    safeMaximum > 0 ? (safeValue / safeMaximum) * 100 : 0,
+    100,
+  );
+
+  return (
+    <div className="weekly-breakdown__item">
+      <div className="weekly-breakdown__item-header">
+        <span>{title}</span>
+
+        <strong>{formatHours(safeValue)}</strong>
+      </div>
+
+      <div
+        className="weekly-breakdown__track"
+        role="progressbar"
+        aria-label={title}
+        aria-valuemin="0"
+        aria-valuemax={safeMaximum}
+        aria-valuenow={Math.min(safeValue, safeMaximum || safeValue)}
+      >
+        <span
+          className={`weekly-breakdown__value weekly-breakdown__value--${tone}`}
+          style={{
+            width: `${progress}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function getCurrentMondayDate() {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const date = today.getDate();
+  const weekday = today.getDay();
+
+  const daysSinceMonday = weekday === 0 ? 6 : weekday - 1;
+
+  const monday = new Date(year, month, date - daysSinceMonday);
+
+  return formatLocalDateInput(monday);
+}
+
+function addDaysToDateString(value, numberOfDays) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  const date = new Date(year, month - 1, day);
+
+  date.setDate(date.getDate() + numberOfDays);
+
+  return formatLocalDateInput(date);
+}
+
+function formatLocalDateInput(date) {
+  const year = date.getFullYear();
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatWeekRange(startValue, endValue) {
+  if (!startValue || !endValue) {
+    return "Week unavailable";
+  }
+
+  const startDate = parseLocalDate(startValue);
+  const endDate = parseLocalDate(endValue);
+
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return "Week unavailable";
+  }
+
+  return `${startDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })} – ${endDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+}
+
+function parseLocalDate(value) {
+  if (typeof value !== "string") {
+    return new Date(NaN);
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return new Date(NaN);
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function safeNonNegativeNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number < 0) {
+    return 0;
+  }
+
+  return number;
+}
+
+function formatHours(value) {
+  return `${safeNonNegativeNumber(value).toFixed(2)} hrs`;
+}
+
 const styles = {
-  page: {
+  loadingPage: {
     minHeight: "100vh",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#F4F7FB",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     padding: "32px",
   },
-  header: {
-    marginBottom: "24px",
-  },
-  title: {
-    color: "#0A4DA2",
-    fontSize: "36px",
-    fontWeight: "bold",
-    marginBottom: "8px",
-  },
-  subtitle: {
-    color: "#6B7280",
-    fontSize: "16px",
-  },
-  actions: {
-    display: "flex",
-    gap: "16px",
-    flexWrap: "wrap",
-    marginBottom: "24px",
-  },
-  secondaryButton: {
+
+  loadingSessionCard: {
     backgroundColor: "#FFFFFF",
     color: "#0A4DA2",
-    border: "1px solid #0A4DA2",
-    padding: "12px 18px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "24px",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: "20px",
-    padding: "24px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
     border: "1px solid #DCEBFF",
-  },
-  cardLabel: {
-    color: "#6B7280",
-    fontSize: "14px",
-    marginBottom: "8px",
-  },
-  cardValue: {
-    color: "#0A4DA2",
-    fontSize: "32px",
+    borderRadius: "16px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    padding: "24px",
     fontWeight: "bold",
-    marginBottom: "8px",
+    textAlign: "center",
   },
-  cardSubtitle: {
-    color: "#6B7280",
-    fontSize: "14px",
+
+  page: {
+    width: "100%",
+    maxWidth: "1440px",
+    margin: "0 auto",
   },
-  error: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    padding: "12px 16px",
-    borderRadius: "10px",
-    marginBottom: "16px",
+
+  messageWrapper: {
+    marginBottom: "20px",
+  },
+
+  loadingCard: {
+    backgroundColor: "#FFFFFF",
+    border: "1px solid #DCEBFF",
+    borderRadius: "20px",
+    padding: "48px",
+    textAlign: "center",
+    color: "#64748B",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
   },
 };

@@ -2,8 +2,13 @@ import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 
 export const metadata = {
-  title: "ShiftStack Admin Dashboard",
-  description: "Admin dashboard for ShiftStack time tracking",
+  title: {
+    default: "ShiftStack",
+    template: "%s | ShiftStack",
+  },
+  description:
+    "ShiftStack workforce time tracking, employee management, and reporting.",
+  applicationName: "ShiftStack",
 };
 
 export default function RootLayout({ children }) {
