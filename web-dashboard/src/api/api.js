@@ -1,12 +1,12 @@
 import axios from "axios";
 
 const rawApiBaseUrl =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
 
-const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, "");
+const apiBaseUrl = rawApiBaseUrl.replace(/\/+$/, "");
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: apiBaseUrl,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
@@ -14,22 +14,18 @@ const api = axios.create({
 });
 
 const refreshApi = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: apiBaseUrl,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-const clearAuthentication = () => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("token");
-};
+/*
+|--------------------------------------------------------------------------
+| Request interceptor
+|--------------------------------------------------------------------------
+*/
 
 api.interceptors.request.use(
   (config) => {
@@ -37,7 +33,6 @@ api.interceptors.request.use(
       const accessToken = localStorage.getItem("accessToken");
 
       if (accessToken) {
-        config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
     }
@@ -47,59 +42,95 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+/*
+|--------------------------------------------------------------------------
+| Response interceptor
+|--------------------------------------------------------------------------
+*/
+
 api.interceptors.response.use(
   (response) => response,
+
   async (error) => {
     const originalRequest = error.config;
 
-    const isUnauthorized = error.response?.status === 401;
-    const isRefreshRequest = originalRequest?.url?.includes("/auth/refresh");
-
-    if (
-      typeof window !== "undefined" &&
-      isUnauthorized &&
-      originalRequest &&
-      !originalRequest._retry &&
-      !isRefreshRequest
-    ) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem("refreshToken");
-
-        if (!refreshToken) {
-          throw new Error("No refresh token found");
-        }
-
-        const response = await refreshApi.post("/auth/refresh", {
-          refreshToken,
-        });
-
-        const newAccessToken = response.data?.accessToken;
-
-        if (!newAccessToken) {
-          throw new Error("Refresh response did not include an access token");
-        }
-
-        localStorage.setItem("accessToken", newAccessToken);
-
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-        return api(originalRequest);
-      } catch (refreshError) {
-        clearAuthentication();
-
-        if (window.location.pathname !== "/login") {
-          window.location.replace("/login");
-        }
-
-        return Promise.reject(refreshError);
-      }
+    if (!originalRequest) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    const requestUrl = originalRequest.url || "";
+
+    /*
+     * Do NOT attempt token refresh while logging in,
+     * registering, or refreshing tokens.
+     */
+    const isAuthRequest =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/refresh");
+
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      isAuthRequest
+    ) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    try {
+      const refreshToken =
+        typeof window !== "undefined"
+          ? localStorage.getItem("refreshToken")
+          : null;
+
+      if (!refreshToken) {
+        clearStoredAuthentication();
+
+        return Promise.reject(error);
+      }
+
+      const response = await refreshApi.post("/auth/refresh", {
+        refreshToken,
+      });
+
+      const newAccessToken = response.data?.accessToken;
+
+      const newRefreshToken = response.data?.refreshToken;
+
+      if (!newAccessToken || !newRefreshToken) {
+        throw new Error("Refresh response did not contain valid tokens");
+      }
+
+      localStorage.setItem("accessToken", newAccessToken);
+
+      localStorage.setItem("refreshToken", newRefreshToken);
+
+      originalRequest.headers = originalRequest.headers || {};
+
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+      return api(originalRequest);
+    } catch (refreshError) {
+      clearStoredAuthentication();
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+
+      return Promise.reject(refreshError);
+    }
   },
 );
+
+function clearStoredAuthentication() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+}
 
 export default api;

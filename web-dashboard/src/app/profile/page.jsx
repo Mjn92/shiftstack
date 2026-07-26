@@ -10,13 +10,17 @@ import api from "../../api/api";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { employee, loading: authLoading, loadUser } = useContext(AuthContext);
+  const {
+    employee,
+    loading: authLoading,
+    loadUser,
+    logout,
+  } = useContext(AuthContext);
 
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
     phone: "",
-    department: "",
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -33,6 +37,7 @@ export default function ProfilePage() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [profileErrors, setProfileErrors] = useState({});
 
   useEffect(() => {
     if (!authLoading && !employee) {
@@ -50,7 +55,6 @@ export default function ProfilePage() {
       first_name: employee.first_name || "",
       last_name: employee.last_name || "",
       phone: employee.phone || "",
-      department: employee.department || "",
     });
   }, [employee]);
 
@@ -59,7 +63,6 @@ export default function ProfilePage() {
       first_name: employee?.first_name || "",
       last_name: employee?.last_name || "",
       phone: employee?.phone || "",
-      department: employee?.department || "",
     }),
     [employee],
   );
@@ -82,6 +85,11 @@ export default function ProfilePage() {
       ...current,
       [name]: value,
     }));
+
+    setProfileErrors((current) => ({
+      ...current,
+      [name]: "",
+    }));
   };
 
   const handlePasswordChange = (event) => {
@@ -98,21 +106,48 @@ export default function ProfilePage() {
     setError("");
   };
 
+  const validateProfile = () => {
+    const errors = {};
+
+    const firstName = form.first_name.trim();
+    const lastName = form.last_name.trim();
+    const phone = form.phone.trim();
+
+    if (!firstName) {
+      errors.first_name = "First name is required.";
+    } else if (firstName.length > 50) {
+      errors.first_name = "First name must be 50 characters or fewer.";
+    }
+
+    if (!lastName) {
+      errors.last_name = "Last name is required.";
+    } else if (lastName.length > 50) {
+      errors.last_name = "Last name must be 50 characters or fewer.";
+    }
+
+    if (phone && !/^[0-9()+\-\s.]{7,25}$/.test(phone)) {
+      errors.phone = "Enter a valid phone number.";
+    }
+
+    setProfileErrors(errors);
+
+    return Object.keys(errors).length === 0;
+  };
+
   const updateProfile = async (event) => {
     event.preventDefault();
     resetMessages();
+
+    if (!validateProfile()) {
+      setError("Please correct the highlighted profile fields.");
+      return;
+    }
 
     const payload = {
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
       phone: form.phone.trim(),
-      department: form.department.trim(),
     };
-
-    if (!payload.first_name || !payload.last_name) {
-      setError("First name and last name are required.");
-      return;
-    }
 
     try {
       setProfileSubmitting(true);
@@ -155,8 +190,10 @@ export default function ProfilePage() {
       return;
     }
 
-    if (passwordForm.new_password.length < 8) {
-      setError("New password must contain at least 8 characters.");
+    const passwordValidation = validatePassword(passwordForm.new_password);
+
+    if (!passwordValidation.valid) {
+      setError("New password must meet all password requirements.");
       return;
     }
 
@@ -182,6 +219,15 @@ export default function ProfilePage() {
       setShowCurrentPassword(false);
       setShowNewPassword(false);
 
+      if (response.data?.session_revoked) {
+        if (logout) {
+          await logout();
+        }
+
+        router.replace("/login?message=password-changed");
+        return;
+      }
+
       setMessage(response.data?.message || "Password changed successfully.");
     } catch (err) {
       console.error("Password change failed:", err);
@@ -198,6 +244,7 @@ export default function ProfilePage() {
 
   const resetProfileForm = () => {
     setForm(originalProfile);
+    setProfileErrors({});
     resetMessages();
   };
 
@@ -222,13 +269,31 @@ export default function ProfilePage() {
 
         {message && (
           <div style={styles.success} role="status" aria-live="polite">
-            {message}
+            <span>{message}</span>
+
+            <button
+              type="button"
+              style={styles.messageClose}
+              onClick={() => setMessage("")}
+              aria-label="Dismiss success message"
+            >
+              ×
+            </button>
           </div>
         )}
 
         {error && (
           <div style={styles.error} role="alert">
-            {error}
+            <span>{error}</span>
+
+            <button
+              type="button"
+              style={styles.messageClose}
+              onClick={() => setError("")}
+              aria-label="Dismiss error message"
+            >
+              ×
+            </button>
           </div>
         )}
 
@@ -304,34 +369,68 @@ export default function ProfilePage() {
               )}
             </div>
 
-            <form onSubmit={updateProfile}>
+            <form onSubmit={updateProfile} aria-busy={profileSubmitting}>
               <div style={styles.twoColumnGrid}>
                 <label style={styles.field}>
                   <span style={styles.label}>First Name</span>
 
                   <input
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      ...(profileErrors.first_name ? styles.inputError : {}),
+                    }}
                     name="first_name"
                     value={form.first_name}
                     onChange={handleProfileChange}
                     autoComplete="given-name"
                     disabled={profileSubmitting}
+                    aria-invalid={Boolean(profileErrors.first_name)}
+                    aria-describedby={
+                      profileErrors.first_name ? "first-name-error" : undefined
+                    }
                     required
                   />
+
+                  {profileErrors.first_name && (
+                    <span
+                      id="first-name-error"
+                      style={styles.fieldError}
+                      role="alert"
+                    >
+                      {profileErrors.first_name}
+                    </span>
+                  )}
                 </label>
 
                 <label style={styles.field}>
                   <span style={styles.label}>Last Name</span>
 
                   <input
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      ...(profileErrors.last_name ? styles.inputError : {}),
+                    }}
                     name="last_name"
                     value={form.last_name}
                     onChange={handleProfileChange}
                     autoComplete="family-name"
                     disabled={profileSubmitting}
+                    aria-invalid={Boolean(profileErrors.last_name)}
+                    aria-describedby={
+                      profileErrors.last_name ? "last-name-error" : undefined
+                    }
                     required
                   />
+
+                  {profileErrors.last_name && (
+                    <span
+                      id="last-name-error"
+                      style={styles.fieldError}
+                      role="alert"
+                    >
+                      {profileErrors.last_name}
+                    </span>
+                  )}
                 </label>
               </div>
 
@@ -339,7 +438,10 @@ export default function ProfilePage() {
                 <span style={styles.label}>Phone</span>
 
                 <input
-                  style={styles.input}
+                  style={{
+                    ...styles.input,
+                    ...(profileErrors.phone ? styles.inputError : {}),
+                  }}
                   type="tel"
                   name="phone"
                   value={form.phone}
@@ -347,21 +449,17 @@ export default function ProfilePage() {
                   autoComplete="tel"
                   placeholder="Enter phone number"
                   disabled={profileSubmitting}
+                  aria-invalid={Boolean(profileErrors.phone)}
+                  aria-describedby={
+                    profileErrors.phone ? "phone-error" : undefined
+                  }
                 />
-              </label>
 
-              <label style={styles.field}>
-                <span style={styles.label}>Department</span>
-
-                <input
-                  style={styles.input}
-                  name="department"
-                  value={form.department}
-                  onChange={handleProfileChange}
-                  autoComplete="organization-title"
-                  placeholder="Enter department"
-                  disabled={profileSubmitting}
-                />
+                {profileErrors.phone && (
+                  <span id="phone-error" style={styles.fieldError} role="alert">
+                    {profileErrors.phone}
+                  </span>
+                )}
               </label>
 
               <div style={styles.formActions}>
@@ -398,7 +496,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <form onSubmit={changePassword}>
+            <form onSubmit={changePassword} aria-busy={passwordSubmitting}>
               <label style={styles.field}>
                 <span style={styles.label}>Current Password</span>
 
@@ -446,7 +544,7 @@ export default function ProfilePage() {
                     autoComplete="new-password"
                     placeholder="Enter new password"
                     disabled={passwordSubmitting}
-                    minLength={8}
+                    minLength={12}
                     required
                   />
 
@@ -478,7 +576,7 @@ export default function ProfilePage() {
                   autoComplete="new-password"
                   placeholder="Re-enter new password"
                   disabled={passwordSubmitting}
-                  minLength={8}
+                  minLength={12}
                   required
                 />
               </label>
@@ -502,11 +600,49 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <ul style={styles.passwordRequirements}>
-                <li>Use at least 8 characters.</li>
-                <li>Include a mix of letters, numbers, or symbols.</li>
-                <li>Do not reuse your current password.</li>
-              </ul>
+              <div
+                style={styles.passwordRequirements}
+                aria-label="Password requirements"
+              >
+                <PasswordRequirement
+                  valid={passwordStrength.rules.length}
+                  text="At least 12 characters"
+                />
+
+                <PasswordRequirement
+                  valid={passwordStrength.rules.uppercase}
+                  text="One uppercase letter"
+                />
+
+                <PasswordRequirement
+                  valid={passwordStrength.rules.lowercase}
+                  text="One lowercase letter"
+                />
+
+                <PasswordRequirement
+                  valid={passwordStrength.rules.number}
+                  text="One number"
+                />
+
+                <PasswordRequirement
+                  valid={passwordStrength.rules.special}
+                  text="One special character"
+                />
+              </div>
+
+              {passwordForm.confirm_password && (
+                <p
+                  style={
+                    passwordForm.confirm_password === passwordForm.new_password
+                      ? styles.passwordMatch
+                      : styles.passwordMismatch
+                  }
+                >
+                  {passwordForm.confirm_password === passwordForm.new_password
+                    ? "Passwords match."
+                    : "Passwords do not match."}
+                </p>
+              )}
 
               <button
                 style={{
@@ -522,6 +658,27 @@ export default function ProfilePage() {
               </button>
             </form>
           </section>
+
+          <section style={styles.securityInfo}>
+            <h3 style={styles.securityInfoTitle}>Account Security</h3>
+
+            <p style={styles.securityInfoText}>
+              Changing your password signs you out of existing ShiftStack
+              sessions. You will need to sign in again with your new password.
+            </p>
+
+            <div style={styles.securityInfoGrid}>
+              <DetailRow
+                label="Authentication"
+                value="JWT access and refresh tokens"
+              />
+
+              <DetailRow
+                label="Account Status"
+                value={employee.active ? "Active" : "Inactive"}
+              />
+            </div>
+          </section>
         </div>
       </div>
     </AppShell>
@@ -533,6 +690,20 @@ function DetailRow({ label, value }) {
     <div style={styles.detailRow}>
       <span style={styles.detailLabel}>{label}</span>
       <strong style={styles.detailValue}>{value}</strong>
+    </div>
+  );
+}
+
+function PasswordRequirement({ valid, text }) {
+  return (
+    <div
+      style={{
+        ...styles.passwordRequirement,
+        ...(valid ? styles.passwordRequirementValid : {}),
+      }}
+    >
+      <span aria-hidden="true">{valid ? "✓" : "○"}</span>
+      <span>{text}</span>
     </div>
   );
 }
@@ -564,43 +735,65 @@ function formatRole(role) {
   return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
+function validatePassword(password) {
+  const value = typeof password === "string" ? password : "";
+
+  const rules = {
+    length: value.length >= 12,
+    uppercase: /[A-Z]/.test(value),
+    lowercase: /[a-z]/.test(value),
+    number: /\d/.test(value),
+    special: /[^A-Za-z0-9]/.test(value),
+  };
+
+  return {
+    rules,
+    valid: Object.values(rules).every(Boolean),
+  };
+}
+
 function getPasswordStrength(password) {
+  const validation = validatePassword(password);
+  const passedRules = Object.values(validation.rules).filter(Boolean).length;
+
   if (!password) {
     return {
       label: "Not set",
       percent: 0,
       color: "#CBD5E1",
+      rules: validation.rules,
+      valid: false,
     };
   }
 
-  let score = 0;
+  let label = "Very weak";
+  let percent = 20;
+  let color = "#DC2626";
 
-  if (password.length >= 8) score += 1;
-  if (password.length >= 12) score += 1;
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
-  if (/\d/.test(password)) score += 1;
-  if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-  if (score <= 1) {
-    return {
-      label: "Weak",
-      percent: 25,
-      color: "#DC2626",
-    };
-  }
-
-  if (score <= 3) {
-    return {
-      label: "Moderate",
-      percent: 60,
-      color: "#D97706",
-    };
+  if (passedRules >= 5) {
+    label = "Strong";
+    percent = 100;
+    color = "#16A34A";
+  } else if (passedRules >= 4) {
+    label = "Good";
+    percent = 80;
+    color = "#65A30D";
+  } else if (passedRules >= 3) {
+    label = "Fair";
+    percent = 60;
+    color = "#D97706";
+  } else if (passedRules >= 2) {
+    label = "Weak";
+    percent = 40;
+    color = "#EA580C";
   }
 
   return {
-    label: "Strong",
-    percent: 100,
-    color: "#16A34A",
+    label,
+    percent,
+    color,
+    rules: validation.rules,
+    valid: validation.valid,
   };
 }
 
@@ -821,6 +1014,19 @@ const styles = {
     fontSize: "15px",
   },
 
+  inputError: {
+    borderColor: "#DC2626",
+    boxShadow: "0 0 0 1px #DC2626",
+  },
+
+  fieldError: {
+    display: "block",
+    marginTop: "5px",
+    color: "#B91C1C",
+    fontSize: "12px",
+    fontWeight: "600",
+  },
+
   passwordWrapper: {
     position: "relative",
   },
@@ -919,14 +1125,69 @@ const styles = {
   },
 
   passwordRequirements: {
+    display: "grid",
+    gap: "8px",
+    margin: "0 0 14px",
+  },
+
+  passwordRequirement: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
     color: "#64748B",
     fontSize: "13px",
-    lineHeight: 1.6,
-    paddingLeft: "20px",
+  },
+
+  passwordRequirementValid: {
+    color: "#15803D",
+  },
+
+  passwordMatch: {
+    margin: "0 0 16px",
+    color: "#15803D",
+    fontSize: "12px",
+    fontWeight: "600",
+  },
+
+  passwordMismatch: {
+    margin: "0 0 16px",
+    color: "#B91C1C",
+    fontSize: "12px",
+    fontWeight: "600",
+  },
+
+  securityInfo: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
+    border: "1px solid #DCEBFF",
+  },
+
+  securityInfoTitle: {
+    color: "#172033",
+    margin: "0 0 8px",
+    fontSize: "20px",
+  },
+
+  securityInfoText: {
+    color: "#64748B",
     margin: "0 0 18px",
+    lineHeight: 1.6,
+  },
+
+  securityInfoGrid: {
+    display: "grid",
+    border: "1px solid #E2E8F0",
+    borderRadius: "14px",
+    overflow: "hidden",
   },
 
   success: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
     backgroundColor: "#DCFCE7",
     color: "#166534",
     border: "1px solid #BBF7D0",
@@ -936,11 +1197,26 @@ const styles = {
   },
 
   error: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
     backgroundColor: "#FEE2E2",
     color: "#991B1B",
     border: "1px solid #FCA5A5",
     padding: "14px 16px",
     borderRadius: "12px",
     marginBottom: "20px",
+  },
+
+  messageClose: {
+    flex: "0 0 auto",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "inherit",
+    cursor: "pointer",
+    fontSize: "20px",
+    lineHeight: 1,
+    padding: "2px 4px",
   },
 };
