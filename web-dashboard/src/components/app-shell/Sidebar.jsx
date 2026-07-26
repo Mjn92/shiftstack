@@ -21,6 +21,7 @@ import {
 
 import { AuthContext } from "../../context/AuthContext";
 import { canAccessAdmin, canAccessManagement } from "../../utils/roleAccess";
+import useUnreadNotifications from "../../hooks/useUnreadNotifications";
 
 const employeeLinks = [
   {
@@ -47,6 +48,7 @@ const employeeLinks = [
     href: "/notifications",
     label: "Notifications",
     icon: Bell,
+    badge: "notifications",
   },
   {
     href: "/profile",
@@ -88,7 +90,10 @@ export default function Sidebar({ mobile = false, onNavigate }) {
   const { employee, logout } = useContext(AuthContext);
 
   const showManagement = canAccessManagement(employee?.role);
+
   const showAdmin = canAccessAdmin(employee?.role);
+
+  const { unreadCount } = useUnreadNotifications(Boolean(employee));
 
   const handleLogout = async () => {
     try {
@@ -115,6 +120,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
         <div>
           <p className="app-sidebar__brand-name">ShiftStack</p>
+
           <p className="app-sidebar__brand-description">Workforce Management</p>
         </div>
       </div>
@@ -133,6 +139,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
           <p className="app-sidebar__user-role">
             <ShieldCheck size={14} aria-hidden="true" />
+
             {formatRole(employee?.role)}
           </p>
         </div>
@@ -144,6 +151,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
           links={employeeLinks}
           pathname={pathname}
           onNavigate={onNavigate}
+          unreadCount={unreadCount}
         />
 
         {showManagement && (
@@ -152,6 +160,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
             links={managementLinks}
             pathname={pathname}
             onNavigate={onNavigate}
+            unreadCount={unreadCount}
           />
         )}
 
@@ -161,6 +170,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
             links={adminLinks}
             pathname={pathname}
             onNavigate={onNavigate}
+            unreadCount={unreadCount}
           />
         )}
       </nav>
@@ -189,7 +199,13 @@ export default function Sidebar({ mobile = false, onNavigate }) {
   );
 }
 
-function NavigationSection({ title, links, pathname, onNavigate }) {
+function NavigationSection({
+  title,
+  links,
+  pathname,
+  onNavigate,
+  unreadCount,
+}) {
   return (
     <section className="app-sidebar__section">
       <h2 className="app-sidebar__section-title">{title}</h2>
@@ -203,6 +219,9 @@ function NavigationSection({ title, links, pathname, onNavigate }) {
             (link.href !== "/dashboard" &&
               pathname?.startsWith(`${link.href}/`));
 
+          const showNotificationBadge =
+            link.badge === "notifications" && unreadCount > 0;
+
           return (
             <Link
               key={link.href}
@@ -214,7 +233,19 @@ function NavigationSection({ title, links, pathname, onNavigate }) {
               aria-current={active ? "page" : undefined}
             >
               <Icon size={19} aria-hidden="true" />
+
               <span>{link.label}</span>
+
+              {showNotificationBadge && (
+                <span
+                  className="app-sidebar__notification-badge"
+                  aria-label={`${unreadCount} unread notification${
+                    unreadCount === 1 ? "" : "s"
+                  }`}
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -229,6 +260,7 @@ function getInitials(employee) {
   }
 
   const firstInitial = employee.first_name?.charAt(0) || "";
+
   const lastInitial = employee.last_name?.charAt(0) || "";
 
   return `${firstInitial}${lastInitial}`.toUpperCase() || "SS";
