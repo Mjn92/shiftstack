@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
+import { formatDateTime, formatMinutes } from "../../utils/dateTime";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
 
@@ -16,7 +19,14 @@ export default function ClockPage() {
   const [pageLoading, setPageLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+
+  // One action state is used for both clock-in and clock-out so the user
+  // cannot submit duplicate or overlapping clock requests.
+  const [clockAction, setClockAction] = useState(null);
+
+  // Keeps the active-shift duration current while the employee remains
+  // clocked in without requiring a manual refresh.
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const loadClockStatus = useCallback(async () => {
     try {
@@ -24,7 +34,16 @@ export default function ClockPage() {
       setError("");
 
       const response = await api.get("/time/status");
-      setClockStatus(response.data || {});
+
+      const data =
+        response?.data &&
+        typeof response.data === "object" &&
+        !Array.isArray(response.data)
+          ? response.data
+          : {};
+
+      setClockStatus(data);
+      setCurrentTime(Date.now());
     } catch (err) {
       console.error("Clock status error:", err);
 
@@ -50,9 +69,27 @@ export default function ClockPage() {
     }
   }, [employee, loadClockStatus]);
 
+  useEffect(() => {
+    if (!clockStatus?.clocked_in) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [clockStatus?.clocked_in]);
+
   const handleClockIn = async () => {
+    if (clockAction || clockStatus?.clocked_in) {
+      return;
+    }
+
     try {
-      setSubmitting(true);
+      setClockAction("in");
       setMessage("");
       setError("");
 
@@ -60,19 +97,25 @@ export default function ClockPage() {
 
       setMessage(response.data?.message || "Clock-in request accepted.");
 
+      // The backend remains the source of truth. Reload status rather than
+      // assuming the request succeeded based only on frontend state.
       await loadClockStatus();
     } catch (err) {
-      console.error("Clock-in error:", err);
+      console.error("Clock in error:", err);
 
-      setError(err.response?.data?.error || "Clock-in failed.");
+      setError(err.response?.data?.error || "Could not clock in.");
     } finally {
-      setSubmitting(false);
+      setClockAction(null);
     }
   };
 
   const handleClockOut = async () => {
+    if (clockAction || !clockStatus?.clocked_in) {
+      return;
+    }
+
     try {
-      setSubmitting(true);
+      setClockAction("out");
       setMessage("");
       setError("");
 
@@ -82,43 +125,28 @@ export default function ClockPage() {
 
       await loadClockStatus();
     } catch (err) {
-      console.error("Clock-out error:", err);
+      console.error("Clock out error:", err);
 
-      setError(err.response?.data?.error || "Clock-out failed.");
+      setError(err.response?.data?.error || "Could not clock out.");
     } finally {
-      setSubmitting(false);
+      setClockAction(null);
     }
   };
 
   const isClockedIn = Boolean(clockStatus?.clocked_in);
   const currentEntry = clockStatus?.current_entry;
+  const actionInProgress = Boolean(clockAction);
 
-  const currentShiftDuration = useMemo(() => {
-    if (!isClockedIn || !currentEntry?.clock_in) {
-      return "No active shift";
-    }
-
-    const startedAt = new Date(currentEntry.clock_in);
-
-    if (Number.isNaN(startedAt.getTime())) {
-      return "Active shift";
-    }
-
-    const elapsedMinutes = Math.max(
-      0,
-      // eslint-disable-next-line react-hooks/purity
-      Math.floor((Date.now() - startedAt.getTime()) / 60000),
-    );
-
-    return formatMinutes(elapsedMinutes);
-  }, [isClockedIn, currentEntry]);
+  const currentShiftDuration = getCurrentShiftDuration(
+    isClockedIn,
+    currentEntry?.clock_in,
+    currentTime,
+  );
 
   if (authLoading || !employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard} role="status" aria-live="polite">
-          Loading clock center...
-        </div>
+        <LoadingState message="Loading clock center..." />
       </main>
     );
   }
@@ -136,6 +164,7 @@ export default function ClockPage() {
                 type="button"
                 style={styles.secondaryButton}
                 onClick={() => router.push("/time-history")}
+                disabled={actionInProgress}
               >
                 Time History
               </button>
@@ -144,10 +173,12 @@ export default function ClockPage() {
                 type="button"
                 style={{
                   ...styles.secondaryButton,
-                  ...(pageLoading ? styles.disabledButton : {}),
+                  ...(pageLoading || actionInProgress
+                    ? styles.disabledButton
+                    : {}),
                 }}
                 onClick={loadClockStatus}
-                disabled={pageLoading || submitting}
+                disabled={pageLoading || actionInProgress}
               >
                 {pageLoading ? "Refreshing..." : "Refresh Status"}
               </button>
@@ -157,29 +188,42 @@ export default function ClockPage() {
 
         {message && (
           <div style={styles.success} role="status" aria-live="polite">
-            {message}
+            <span>{message}</span>
+
+            <button
+              type="button"
+              style={styles.dismissButton}
+              onClick={() => setMessage("")}
+              aria-label="Dismiss success message"
+            >
+              ×
+            </button>
           </div>
         )}
 
         {error && (
-          <div style={styles.error} role="alert">
-            {error}
-          </div>
+          <ErrorState
+            message={error}
+            onRetry={
+              pageLoading || actionInProgress ? undefined : loadClockStatus
+            }
+          />
         )}
 
-        {pageLoading ? (
+        {pageLoading && !clockStatus ? (
           <section style={styles.statusCard}>
-            <div style={styles.statusLoading} role="status" aria-live="polite">
-              Loading your current clock status...
-            </div>
+            <LoadingState message="Loading your current clock status..." />
           </section>
         ) : (
           <div style={styles.contentGrid}>
-            <section style={styles.statusCard}>
+            <section
+              style={styles.statusCard}
+              aria-labelledby="clock-status-title"
+            >
               <div style={styles.cardHeader}>
                 <div>
                   <p style={styles.cardEyebrow}>Current Status</p>
-                  <h2 style={styles.cardTitle}>
+                  <h2 id="clock-status-title" style={styles.cardTitle}>
                     {isClockedIn ? "You are clocked in" : "You are clocked out"}
                   </h2>
                 </div>
@@ -223,28 +267,34 @@ export default function ClockPage() {
                   type="button"
                   style={{
                     ...styles.clockButton,
-                    backgroundColor: isClockedIn ? "#94A3B8" : "#0A4DA2",
-                    ...(isClockedIn || submitting ? styles.disabledButton : {}),
+                    backgroundColor:
+                      isClockedIn || actionInProgress ? "#94A3B8" : "#0A4DA2",
+                    ...(isClockedIn || actionInProgress
+                      ? styles.disabledButton
+                      : {}),
                   }}
                   onClick={handleClockIn}
-                  disabled={isClockedIn || submitting}
+                  disabled={isClockedIn || actionInProgress}
+                  aria-busy={clockAction === "in"}
                 >
-                  {submitting && !isClockedIn ? "Clocking In..." : "Clock In"}
+                  {clockAction === "in" ? "Clocking In..." : "Clock In"}
                 </button>
 
                 <button
                   type="button"
                   style={{
                     ...styles.clockButton,
-                    backgroundColor: !isClockedIn ? "#94A3B8" : "#DC2626",
-                    ...(!isClockedIn || submitting
+                    backgroundColor:
+                      !isClockedIn || actionInProgress ? "#94A3B8" : "#DC2626",
+                    ...(!isClockedIn || actionInProgress
                       ? styles.disabledButton
                       : {}),
                   }}
                   onClick={handleClockOut}
-                  disabled={!isClockedIn || submitting}
+                  disabled={!isClockedIn || actionInProgress}
+                  aria-busy={clockAction === "out"}
                 >
-                  {submitting && isClockedIn ? "Clocking Out..." : "Clock Out"}
+                  {clockAction === "out" ? "Clocking Out..." : "Clock Out"}
                 </button>
               </div>
             </section>
@@ -255,14 +305,14 @@ export default function ClockPage() {
 
               <ul style={styles.helpList}>
                 <li>Clock in only when your scheduled shift begins.</li>
-                <li>Keep the app open until your clock request completes.</li>
+                <li>Wait for the request to finish before clicking again.</li>
                 <li>Clock out before leaving at the end of your shift.</li>
                 <li>Use Time History to review completed entries.</li>
               </ul>
 
               <div style={styles.helpNote}>
                 {isClockedIn
-                  ? "You currently have an active shift. Clock out when your work is complete."
+                  ? `You currently have an active shift (${currentShiftDuration}). Clock out when your work is complete.`
                   : "You do not currently have an active shift."}
               </div>
             </aside>
@@ -290,33 +340,23 @@ function getEmployeeName(employee) {
   return fullName || employee?.email || "Current employee";
 }
 
-function formatDateTime(value) {
-  if (!value) {
-    return "—";
+function getCurrentShiftDuration(isClockedIn, clockInValue, currentTime) {
+  if (!isClockedIn || !clockInValue) {
+    return "No active shift";
   }
 
-  const date = new Date(value);
+  const startedAt = new Date(clockInValue);
 
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
+  if (Number.isNaN(startedAt.getTime())) {
+    return "Active shift";
   }
 
-  return date.toLocaleString();
-}
+  const elapsedMinutes = Math.max(
+    0,
+    Math.floor((currentTime - startedAt.getTime()) / 60000),
+  );
 
-function formatMinutes(totalMinutes) {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours === 0) {
-    return `${minutes} min`;
-  }
-
-  if (minutes === 0) {
-    return `${hours} hr${hours === 1 ? "" : "s"}`;
-  }
-
-  return `${hours} hr${hours === 1 ? "" : "s"} ${minutes} min`;
+  return formatMinutes(elapsedMinutes);
 }
 
 const styles = {
@@ -329,17 +369,6 @@ const styles = {
     padding: "32px",
   },
 
-  loadingCard: {
-    backgroundColor: "#FFFFFF",
-    color: "#0A4DA2",
-    border: "1px solid #DCEBFF",
-    borderRadius: "16px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-    padding: "24px",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-
   page: {
     width: "100%",
     maxWidth: "1440px",
@@ -348,7 +377,7 @@ const styles = {
 
   contentGrid: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 2fr) minmax(280px, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
     gap: "24px",
     alignItems: "start",
   },
@@ -359,12 +388,6 @@ const styles = {
     padding: "28px",
     boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
     border: "1px solid #DCEBFF",
-  },
-
-  statusLoading: {
-    padding: "32px",
-    textAlign: "center",
-    color: "#64748B",
   },
 
   cardHeader: {
@@ -414,6 +437,7 @@ const styles = {
     gap: "20px",
     padding: "16px",
     borderBottom: "1px solid #E2E8F0",
+    flexWrap: "wrap",
   },
 
   detailLabel: {
@@ -488,6 +512,10 @@ const styles = {
   },
 
   success: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
     backgroundColor: "#DCFCE7",
     color: "#166534",
     border: "1px solid #BBF7D0",
@@ -496,12 +524,13 @@ const styles = {
     marginBottom: "20px",
   },
 
-  error: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    marginBottom: "20px",
+  dismissButton: {
+    flex: "0 0 auto",
+    border: "none",
+    background: "transparent",
+    color: "#166534",
+    cursor: "pointer",
+    fontSize: "22px",
+    lineHeight: 1,
   },
 };

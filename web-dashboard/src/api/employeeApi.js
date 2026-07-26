@@ -1,15 +1,33 @@
 import api from "./api";
 
-export const getEmployees = () => api.get("/admin/employees");
+export const getEmployees = () => {
+  return api.get("/admin/employees");
+};
 
-export const createEmployee = (employee) =>
-  api.post("/admin/employees", employee);
+export const createEmployee = (employeeData) => {
+  return api.post("/admin/employees", employeeData);
+};
 
-export const updateEmployee = (id, employee) =>
-  api.put(`/admin/employees/${id}`, employee);
+export const updateEmployee = (id, employeeData) => {
+  validateEmployeeId(id);
 
-export const deactivateEmployee = (id) =>
-  api.patch(`/admin/employees/${id}/deactivate`);
+  return api.put(`/admin/employees/${id}`, employeeData);
+};
 
-export const activateEmployee = (id) =>
-  api.patch(`/admin/employees/${id}/activate`);
+export const deactivateEmployee = (id) => {
+  validateEmployeeId(id);
+
+  return api.patch(`/admin/employees/${id}/deactivate`);
+};
+
+export const activateEmployee = (id) => {
+  validateEmployeeId(id);
+
+  return api.patch(`/admin/employees/${id}/activate`);
+};
+
+function validateEmployeeId(id) {
+  if (id === undefined || id === null || id === "") {
+    throw new Error("Employee ID is required.");
+  }
+}

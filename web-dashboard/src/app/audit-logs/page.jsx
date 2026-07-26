@@ -7,6 +7,10 @@ import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
 import api from "../../api/api";
 import { AuthContext } from "../../context/AuthContext";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
+import EmptyState from "../../components/ui/EmptyState";
+import { formatDate, formatTime } from "../../utils/dateTime";
 import { canAccessAdmin } from "../../utils/roleAccess";
 
 export default function AuditLogsPage() {
@@ -157,11 +161,7 @@ export default function AuditLogsPage() {
           <StatCard label="Clock Events" value={stats.clockEvents} />
         </section>
 
-        {error && (
-          <div style={styles.errorState} role="alert">
-            {error}
-          </div>
-        )}
+        {error && <ErrorState message={error} onRetry={fetchAuditLogs} />}
 
         <section
           style={styles.tableCard}
@@ -208,8 +208,17 @@ export default function AuditLogsPage() {
           </div>
 
           {pageLoading ? (
-            <div style={styles.loadingState} role="status" aria-live="polite">
-              Loading audit logs...
+            <LoadingState message="Loading audit logs..." />
+          ) : filteredLogs.length === 0 ? (
+            <div style={styles.emptyStateWrapper}>
+              <EmptyState
+                title="No matching audit events"
+                description={
+                  auditLogs.length === 0
+                    ? "No audit log entries have been recorded yet."
+                    : "No audit log entries match the current search and action filter."
+                }
+              />
             </div>
           ) : (
             <div style={styles.tableWrapper}>
@@ -224,56 +233,48 @@ export default function AuditLogsPage() {
                 </thead>
 
                 <tbody>
-                  {filteredLogs.length === 0 ? (
-                    <tr>
-                      <td style={styles.emptyState} colSpan={4}>
-                        No audit logs match the current filters.
+                  {filteredLogs.map((log, index) => (
+                    <tr
+                      key={log.id}
+                      style={{
+                        backgroundColor:
+                          index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
+                      }}
+                    >
+                      <td style={styles.cell}>
+                        <span
+                          style={{
+                            ...styles.actionBadge,
+                            backgroundColor: getActionColor(log.action),
+                          }}
+                        >
+                          {formatActionLabel(log.action || "UNKNOWN")}
+                        </span>
+                      </td>
+
+                      <td style={styles.cell}>
+                        <EmployeeCell log={log} />
+                      </td>
+
+                      <td style={styles.cell}>
+                        <span style={styles.detailsText}>
+                          {log.details || "No additional details"}
+                        </span>
+                      </td>
+
+                      <td style={styles.cell}>
+                        <div style={styles.dateCell}>
+                          <span style={styles.datePrimary}>
+                            {formatDate(log.created_at)}
+                          </span>
+
+                          <span style={styles.dateSecondary}>
+                            {formatTime(log.created_at)}
+                          </span>
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    filteredLogs.map((log, index) => (
-                      <tr
-                        key={log.id}
-                        style={{
-                          backgroundColor:
-                            index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
-                        }}
-                      >
-                        <td style={styles.cell}>
-                          <span
-                            style={{
-                              ...styles.actionBadge,
-                              backgroundColor: getActionColor(log.action),
-                            }}
-                          >
-                            {formatActionLabel(log.action || "UNKNOWN")}
-                          </span>
-                        </td>
-
-                        <td style={styles.cell}>
-                          <EmployeeCell log={log} />
-                        </td>
-
-                        <td style={styles.cell}>
-                          <span style={styles.detailsText}>
-                            {log.details || "No additional details"}
-                          </span>
-                        </td>
-
-                        <td style={styles.cell}>
-                          <div style={styles.dateCell}>
-                            <span style={styles.datePrimary}>
-                              {formatDate(log.created_at)}
-                            </span>
-
-                            <span style={styles.dateSecondary}>
-                              {formatTime(log.created_at)}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -336,34 +337,6 @@ function formatActionLabel(action) {
     .join(" ");
 }
 
-function formatDate(value) {
-  if (!value) {
-    return "Unknown date";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-
-  return date.toLocaleDateString();
-}
-
-function formatTime(value) {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return date.toLocaleTimeString();
-}
-
 function getActionColor(action) {
   switch (action) {
     case "LOGIN":
@@ -392,6 +365,19 @@ function getActionColor(action) {
 
     case "EMPLOYEE_ACTIVATED":
       return "#15803D";
+
+    case "PROFILE_UPDATED":
+      return "#0284C7";
+
+    case "PASSWORD_CHANGED":
+      return "#9333EA";
+
+    case "LOGOUT":
+      return "#475569";
+
+    case "TOKEN_REFRESHED":
+    case "TOKEN_ROTATED":
+      return "#0891B2";
 
     default:
       return "#64748B";
@@ -632,24 +618,7 @@ const styles = {
     fontSize: "12px",
   },
 
-  loadingState: {
-    padding: "48px",
-    textAlign: "center",
-    color: "#64748B",
-  },
-
-  emptyState: {
-    padding: "48px",
-    textAlign: "center",
-    color: "#64748B",
-  },
-
-  errorState: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    marginBottom: "20px",
+  emptyStateWrapper: {
+    padding: "20px",
   },
 };

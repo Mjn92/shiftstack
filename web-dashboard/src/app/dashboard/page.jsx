@@ -21,14 +21,20 @@ import DashboardStatCard from "../../components/dashboard/DashboardStatCard";
 import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import RecentActivity from "../../components/dashboard/RecentActivity";
 import WeeklyProgress from "../../components/dashboard/WeeklyProgress";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
+import { formatDateTime, formatMinutes } from "../../utils/dateTime";
 import {
   calculateTotalMinutes,
+  getCompletedEntries,
+  getTodayEntries,
+} from "../../utils/timeEntries";
+import {
   formatDashboardDate,
   formatHours,
   getLastEntry,
-  getTodayEntries,
   isAdmin,
   isManager,
 } from "../../utils/dashboardHelpers";
@@ -58,7 +64,9 @@ export default function DashboardPage() {
         ]);
 
       setClockStatus(
-        statusResponse?.data && typeof statusResponse.data === "object"
+        statusResponse?.data &&
+          typeof statusResponse.data === "object" &&
+          !Array.isArray(statusResponse.data)
           ? statusResponse.data
           : null,
       );
@@ -74,6 +82,8 @@ export default function DashboardPage() {
           ? weeklyResponse.data
           : null,
       );
+
+      setCurrentTime(Date.now());
     } catch (err) {
       console.error("Dashboard load error:", err);
 
@@ -116,18 +126,14 @@ export default function DashboardPage() {
   const dashboardData = useMemo(() => {
     const todayDate = new Date();
     const todaysEntries = getTodayEntries(entries, todayDate);
-    const completedTodayEntries = todaysEntries.filter(
-      (entry) => entry.status !== "open" && entry.clock_out,
-    );
+    const completedTodayEntries = getCompletedEntries(todaysEntries);
 
     const todaysMinutes = calculateTotalMinutes(completedTodayEntries);
     const totalWeeklyHours = Number(weeklySummary?.total_hours) || 0;
     const totalWeeklyShifts = Number(weeklySummary?.total_shifts) || 0;
     const overtimeHours = Number(weeklySummary?.overtime_hours) || 0;
 
-    const completedEntries = entries.filter(
-      (entry) => entry.status !== "open" && entry.clock_out,
-    );
+    const completedEntries = getCompletedEntries(entries);
 
     return {
       today: formatDashboardDate(todayDate),
@@ -151,11 +157,8 @@ export default function DashboardPage() {
   if (authLoading || !employee) {
     return (
       <main style={styles.authLoadingPage}>
-        <div style={styles.authLoadingCard} role="status" aria-live="polite">
-          <h1 style={styles.authLoadingTitle}>Loading ShiftStack...</h1>
-          <p style={styles.authLoadingText}>
-            Checking your session and dashboard access.
-          </p>
+        <div style={styles.authLoadingCard}>
+          <LoadingState message="Checking your session and dashboard access..." />
         </div>
       </main>
     );
@@ -181,6 +184,9 @@ export default function DashboardPage() {
   const currentStatusDescription = isClockedIn
     ? `Active for ${currentShiftDuration}`
     : "Ready for your next shift";
+
+  const initialDataLoading =
+    pageLoading && !clockStatus && entries.length === 0 && !weeklySummary;
 
   return (
     <DashboardErrorBoundary>
@@ -217,25 +223,15 @@ export default function DashboardPage() {
           />
 
           {error && (
-            <div style={styles.error} role="alert">
-              <div>
-                <strong>Dashboard data could not be loaded.</strong>
-                <p style={styles.errorText}>{error}</p>
-              </div>
-
-              <button
-                type="button"
-                className="dashboard-button"
-                style={styles.errorRetryButton}
-                onClick={loadDashboardData}
-                disabled={pageLoading}
-              >
-                Try Again
-              </button>
+            <div style={styles.errorWrapper}>
+              <ErrorState
+                message={error}
+                onRetry={pageLoading ? undefined : loadDashboardData}
+              />
             </div>
           )}
 
-          {pageLoading ? (
+          {initialDataLoading ? (
             <DashboardSkeleton />
           ) : (
             <>
@@ -460,37 +456,7 @@ function getCurrentShiftDuration(
     Math.floor((currentTime - startedAt.getTime()) / 60000),
   );
 
-  const hours = Math.floor(elapsedMinutes / 60);
-  const minutes = elapsedMinutes % 60;
-
-  if (hours === 0) {
-    return `${minutes} min`;
-  }
-
-  if (minutes === 0) {
-    return `${hours} hr${hours === 1 ? "" : "s"}`;
-  }
-
-  return `${hours} hr${hours === 1 ? "" : "s"} ${minutes} min`;
-}
-
-function formatDateTime(value) {
-  if (!value) {
-    return "Unknown time";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown time";
-  }
-
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatMinutes(elapsedMinutes);
 }
 
 function formatEntryStatus(entry) {
@@ -533,18 +499,6 @@ const styles = {
     boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
     border: "1px solid #DCEBFF",
     textAlign: "center",
-  },
-
-  authLoadingTitle: {
-    color: "#0A4DA2",
-    fontSize: "clamp(24px, 4vw, 28px)",
-    fontWeight: "bold",
-    margin: "0 0 8px",
-  },
-
-  authLoadingText: {
-    color: "#6B7280",
-    margin: 0,
   },
 
   container: {
@@ -677,38 +631,12 @@ const styles = {
     animation: "dashboard-spin 1s linear infinite",
   },
 
-  disabledButton: {
-    opacity: 0.65,
-    cursor: "not-allowed",
-  },
-
-  error: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "16px",
-    flexWrap: "wrap",
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
-    padding: "14px 16px",
-    borderRadius: "12px",
+  errorWrapper: {
     marginBottom: "20px",
   },
 
-  errorText: {
-    margin: "5px 0 0",
-    lineHeight: 1.5,
-  },
-
-  errorRetryButton: {
-    backgroundColor: "#991B1B",
-    color: "#FFFFFF",
-    border: "none",
-    padding: "10px 16px",
-    minHeight: "44px",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontWeight: "bold",
+  disabledButton: {
+    opacity: 0.65,
+    cursor: "not-allowed",
   },
 };

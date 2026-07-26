@@ -13,6 +13,10 @@ const api = axios.create({
   },
 });
 
+/*
+ * Separate Axios client used only for token refresh.
+ * It intentionally does not share api's interceptors.
+ */
 const refreshApi = axios.create({
   baseURL: apiBaseUrl,
   timeout: 10000,
@@ -20,6 +24,8 @@ const refreshApi = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+let refreshPromise = null;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,12 +35,16 @@ const refreshApi = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    if (typeof window !== "undefined") {
-      const accessToken = localStorage.getItem("accessToken");
+    if (typeof window === "undefined") {
+      return config;
+    }
 
-      if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-      }
+    const accessToken = localStorage.getItem("accessToken");
+
+    if (accessToken) {
+      config.headers = config.headers || {};
+
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
     return config;
@@ -60,15 +70,14 @@ api.interceptors.response.use(
 
     const requestUrl = originalRequest.url || "";
 
-    /*
-     * Do NOT attempt token refresh while logging in,
-     * registering, or refreshing tokens.
-     */
     const isAuthRequest =
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/register") ||
       requestUrl.includes("/auth/refresh");
 
+    /*
+     * Only attempt refresh for a single failed authenticated request.
+     */
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
@@ -79,29 +88,32 @@ api.interceptors.response.use(
 
     originalRequest._retry = true;
 
+    if (typeof window === "undefined") {
+      return Promise.reject(error);
+    }
+
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    if (!refreshToken) {
+      clearStoredAuthentication();
+      redirectToLogin();
+
+      return Promise.reject(error);
+    }
+
     try {
-      const refreshToken =
-        typeof window !== "undefined"
-          ? localStorage.getItem("refreshToken")
-          : null;
-
-      if (!refreshToken) {
-        clearStoredAuthentication();
-
-        return Promise.reject(error);
+      /*
+       * Reuse the same refresh operation if several requests
+       * receive 401 responses at the same time.
+       */
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken(refreshToken).finally(() => {
+          refreshPromise = null;
+        });
       }
 
-      const response = await refreshApi.post("/auth/refresh", {
-        refreshToken,
-      });
-
-      const newAccessToken = response.data?.accessToken;
-
-      const newRefreshToken = response.data?.refreshToken;
-
-      if (!newAccessToken || !newRefreshToken) {
-        throw new Error("Refresh response did not contain valid tokens");
-      }
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+        await refreshPromise;
 
       localStorage.setItem("accessToken", newAccessToken);
 
@@ -114,15 +126,43 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       clearStoredAuthentication();
-
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
+      redirectToLogin();
 
       return Promise.reject(refreshError);
     }
   },
 );
+
+/*
+|--------------------------------------------------------------------------
+| Refresh access token
+|--------------------------------------------------------------------------
+*/
+
+async function refreshAccessToken(refreshToken) {
+  const response = await refreshApi.post("/auth/refresh", {
+    refreshToken,
+  });
+
+  const newAccessToken = response.data?.accessToken;
+
+  const newRefreshToken = response.data?.refreshToken;
+
+  if (!newAccessToken || !newRefreshToken) {
+    throw new Error("Refresh response did not contain valid tokens");
+  }
+
+  return {
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
+| Authentication cleanup
+|--------------------------------------------------------------------------
+*/
 
 function clearStoredAuthentication() {
   if (typeof window === "undefined") {
@@ -131,6 +171,18 @@ function clearStoredAuthentication() {
 
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (window.location.pathname === "/login") {
+    return;
+  }
+
+  window.location.replace("/login");
 }
 
 export default api;

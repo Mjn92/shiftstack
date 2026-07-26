@@ -16,6 +16,8 @@ import {
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
 
@@ -81,29 +83,29 @@ export default function WeeklySummaryPage() {
   if (loading || !employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingSessionCard} role="status" aria-live="polite">
-          Loading your weekly summary...
+        <div style={styles.loadingSessionCard}>
+          <LoadingState message="Loading your weekly summary..." />
         </div>
       </main>
     );
   }
 
-  const totalHours = Number(summary?.total_hours) || 0;
-  const regularHours = Number(summary?.regular_hours) || 0;
-  const overtimeHours = Number(summary?.overtime_hours) || 0;
-  const totalShifts = Number(summary?.total_shifts) || 0;
+  const totalHours = safeNonNegativeNumber(summary?.total_hours);
+  const regularHours = safeNonNegativeNumber(summary?.regular_hours);
+  const overtimeHours = safeNonNegativeNumber(summary?.overtime_hours);
+  const totalShifts = Math.floor(safeNonNegativeNumber(summary?.total_shifts));
 
-  const averageShiftHours = Number(summary?.average_shift_hours) || 0;
+  const averageShiftHours = safeNonNegativeNumber(summary?.average_shift_hours);
 
-  const longestShiftHours = Number(summary?.longest_shift_hours) || 0;
+  const longestShiftHours = safeNonNegativeNumber(summary?.longest_shift_hours);
 
   const dailyBreakdown = Array.isArray(summary?.daily_breakdown)
     ? summary.daily_breakdown
     : [];
 
-  const weeklyProgress = Math.min((regularHours / 40) * 100, 100);
+  const weeklyProgress = Math.min((totalHours / 40) * 100, 100);
 
-  const remainingHours = Math.max(40 - regularHours, 0);
+  const remainingHours = Math.max(40 - totalHours, 0);
 
   const hasWeeklyActivity = totalShifts > 0 || totalHours > 0;
 
@@ -117,6 +119,8 @@ export default function WeeklySummaryPage() {
 
   const weekEnd =
     summary?.week_end || addDaysToDateString(selectedWeekStart, 6);
+
+  const initialPageLoading = pageLoading && !summary;
 
   const viewPreviousWeek = () => {
     setSelectedWeekStart((current) => addDaysToDateString(current, -7));
@@ -170,8 +174,13 @@ export default function WeeklySummaryPage() {
         />
 
         {error && (
-          <div style={styles.error} role="alert">
-            {error}
+          <div style={styles.messageWrapper}>
+            <ErrorState
+              message={error}
+              onRetry={
+                pageLoading ? undefined : () => loadSummary(selectedWeekStart)
+              }
+            />
           </div>
         )}
 
@@ -223,9 +232,9 @@ export default function WeeklySummaryPage() {
           </div>
         </section>
 
-        {pageLoading && !summary ? (
-          <div style={styles.loadingCard} role="status" aria-live="polite">
-            Loading weekly summary...
+        {initialPageLoading ? (
+          <div style={styles.loadingCard}>
+            <LoadingState message="Loading weekly summary..." />
           </div>
         ) : (
           <>
@@ -434,13 +443,13 @@ function WeeklyStatCard({ icon: Icon, title, value, description, tone }) {
 function DailyHoursChart({ days }) {
   const largestDailyHours = Math.max(
     8,
-    ...days.map((day) => Number(day.total_hours) || 0),
+    ...days.map((day) => safeNonNegativeNumber(day.total_hours)),
   );
 
   return (
     <div className="daily-hours-chart">
       {days.map((day) => {
-        const hours = Number(day.total_hours) || 0;
+        const hours = safeNonNegativeNumber(day.total_hours);
 
         const heightPercentage =
           largestDailyHours > 0 ? (hours / largestDailyHours) * 100 : 0;
@@ -464,8 +473,10 @@ function DailyHoursChart({ days }) {
             <strong>{day.day_name?.slice(0, 3) || "Day"}</strong>
 
             <span>
-              {day.shift_count}{" "}
-              {Number(day.shift_count) === 1 ? "shift" : "shifts"}
+              {Math.floor(safeNonNegativeNumber(day.shift_count))}{" "}
+              {Math.floor(safeNonNegativeNumber(day.shift_count)) === 1
+                ? "shift"
+                : "shifts"}
             </span>
           </div>
         );
@@ -475,9 +486,13 @@ function DailyHoursChart({ days }) {
 }
 
 function HourBreakdownItem({ title, value, maximum, tone }) {
-  const safeValue = Number(value) || 0;
+  const safeValue = safeNonNegativeNumber(value);
+  const safeMaximum = safeNonNegativeNumber(maximum);
 
-  const progress = Math.min(maximum > 0 ? (safeValue / maximum) * 100 : 0, 100);
+  const progress = Math.min(
+    safeMaximum > 0 ? (safeValue / safeMaximum) * 100 : 0,
+    100,
+  );
 
   return (
     <div className="weekly-breakdown__item">
@@ -492,8 +507,8 @@ function HourBreakdownItem({ title, value, maximum, tone }) {
         role="progressbar"
         aria-label={title}
         aria-valuemin="0"
-        aria-valuemax={maximum}
-        aria-valuenow={safeValue}
+        aria-valuemax={safeMaximum}
+        aria-valuenow={Math.min(safeValue, safeMaximum || safeValue)}
       >
         <span
           className={`weekly-breakdown__value weekly-breakdown__value--${tone}`}
@@ -547,8 +562,11 @@ function formatWeekRange(startValue, endValue) {
   }
 
   const startDate = parseLocalDate(startValue);
-
   const endDate = parseLocalDate(endValue);
+
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return "Week unavailable";
+  }
 
   return `${startDate.toLocaleDateString(undefined, {
     month: "short",
@@ -561,15 +579,35 @@ function formatWeekRange(startValue, endValue) {
 }
 
 function parseLocalDate(value) {
+  if (typeof value !== "string") {
+    return new Date(NaN);
+  }
+
   const [year, month, day] = value.split("-").map(Number);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return new Date(NaN);
+  }
 
   return new Date(year, month - 1, day);
 }
 
-function formatHours(value) {
-  const numericValue = Number(value) || 0;
+function safeNonNegativeNumber(value) {
+  const number = Number(value);
 
-  return `${numericValue.toFixed(2)} hrs`;
+  if (!Number.isFinite(number) || number < 0) {
+    return 0;
+  }
+
+  return number;
+}
+
+function formatHours(value) {
+  return `${safeNonNegativeNumber(value).toFixed(2)} hrs`;
 }
 
 const styles = {
@@ -599,6 +637,10 @@ const styles = {
     margin: "0 auto",
   },
 
+  messageWrapper: {
+    marginBottom: "20px",
+  },
+
   loadingCard: {
     backgroundColor: "#FFFFFF",
     border: "1px solid #DCEBFF",
@@ -607,14 +649,5 @@ const styles = {
     textAlign: "center",
     color: "#64748B",
     boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
-  },
-
-  error: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FECACA",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    marginBottom: "20px",
   },
 };

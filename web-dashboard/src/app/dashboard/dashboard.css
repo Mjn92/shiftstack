@@ -10,7 +10,10 @@
   outline-offset: 3px;
 }
 
-.dashboard-button:disabled:focus-visible {
+.dashboard-button:disabled:focus-visible,
+.dashboard-refresh-button:disabled:focus-visible,
+.dashboard-hero__primary-button:disabled:focus-visible,
+.dashboard-hero__secondary-button:disabled:focus-visible {
   outline-color: #6b7280;
 }
 
@@ -100,6 +103,12 @@
   cursor: pointer;
   font: inherit;
   font-weight: 800;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .dashboard-hero__primary-button {
@@ -112,7 +121,8 @@
   color: #166534;
 }
 
-.dashboard-hero__primary-button--danger {
+.dashboard-hero__primary-button--danger,
+.dashboard-hero--active .dashboard-hero__primary-button--danger {
   color: #b91c1c;
 }
 
@@ -122,9 +132,19 @@
   color: #ffffff;
 }
 
-.dashboard-hero__primary-button:hover,
-.dashboard-hero__secondary-button:hover {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-hero__primary-button:not(:disabled):hover,
+  .dashboard-hero__secondary-button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+}
+
+.dashboard-hero__primary-button:disabled,
+.dashboard-hero__secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
 }
 
 .dashboard-hero__timer {
@@ -138,6 +158,7 @@
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.18);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -460,6 +481,7 @@
 .dashboard-activity__details {
   min-width: 0;
   flex: 1;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-activity__item-header {
@@ -551,11 +573,18 @@
   font: inherit;
   text-align: left;
   box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-.dashboard-quick-action:hover {
-  border-color: #93c5fd;
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-quick-action:hover {
+    border-color: #93c5fd;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
 }
 
 .dashboard-quick-action__icon {
@@ -671,6 +700,7 @@
   border: 0;
   margin: -1px;
   clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
@@ -740,5 +770,6 @@
   .dashboard-hero__primary-button,
   .dashboard-hero__secondary-button {
     transition: none;
+    transform: none;
   }
 }

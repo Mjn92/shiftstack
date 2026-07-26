@@ -1,6 +1,17 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f6f8;
+  --surface: #ffffff;
+  --foreground: #111827;
+  --muted-foreground: #64748b;
+
+  --border: #dbe4ef;
+
+  --primary: #0a4da2;
+  --primary-hover: #083f86;
+
+  --focus: #f59e0b;
+
+  --shadow-surface: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
 @theme inline {
@@ -10,27 +21,47 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  min-height: 100%;
+  background: var(--background);
 }
 
 body {
+  min-height: 100vh;
   margin: 0;
+  background: var(--background);
+  color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  background: #f4f6f8;
-  color: #111827;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+img,
+svg {
+  max-width: 100%;
 }
 
 .page-container {
@@ -40,10 +71,10 @@ a {
 }
 
 .page-surface {
-  border: 1px solid #dbe4ef;
+  border: 1px solid var(--border);
   border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  background: var(--surface);
+  box-shadow: var(--shadow-surface);
 }
 
 .page-button {
@@ -54,14 +85,53 @@ a {
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
 }
 
 .page-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+  transform: none;
 }
 
-.page-button:focus-visible {
-  outline: 3px solid #93c5fd;
+.page-button:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .page-button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 820px) {
+  .page-container {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .page-button {
+    transform: none;
+  }
 }

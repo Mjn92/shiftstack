@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
 
@@ -136,6 +138,11 @@ export default function ProfilePage() {
 
   const updateProfile = async (event) => {
     event.preventDefault();
+
+    if (profileSubmitting) {
+      return;
+    }
+
     resetMessages();
 
     if (!validateProfile()) {
@@ -174,6 +181,11 @@ export default function ProfilePage() {
 
   const changePassword = async (event) => {
     event.preventDefault();
+
+    if (passwordSubmitting) {
+      return;
+    }
+
     resetMessages();
 
     if (
@@ -251,12 +263,14 @@ export default function ProfilePage() {
   if (authLoading || !employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard} role="status" aria-live="polite">
-          Loading your profile...
+        <div style={styles.loadingCard}>
+          <LoadingState message="Loading your profile..." />
         </div>
       </main>
     );
   }
+
+  const accountIsActive = isActiveValue(employee.active);
 
   return (
     <AppShell>
@@ -283,12 +297,12 @@ export default function ProfilePage() {
         )}
 
         {error && (
-          <div style={styles.error} role="alert">
-            <span>{error}</span>
+          <div style={styles.errorWrapper}>
+            <ErrorState message={error} />
 
             <button
               type="button"
-              style={styles.messageClose}
+              style={styles.errorCloseButton}
               onClick={() => setError("")}
               aria-label="Dismiss error message"
             >
@@ -316,12 +330,12 @@ export default function ProfilePage() {
             <span
               style={{
                 ...styles.statusBadge,
-                ...(employee.active
+                ...(accountIsActive
                   ? styles.activeBadge
                   : styles.inactiveBadge),
               }}
             >
-              {employee.active ? "Active" : "Inactive"}
+              {accountIsActive ? "Active" : "Inactive"}
             </span>
           </div>
         </section>
@@ -348,7 +362,7 @@ export default function ProfilePage() {
               />
               <DetailRow
                 label="Account Status"
-                value={employee.active ? "Active" : "Inactive"}
+                value={accountIsActive ? "Active" : "Inactive"}
               />
               <DetailRow
                 label="Employee ID"
@@ -379,6 +393,7 @@ export default function ProfilePage() {
                       ...styles.input,
                       ...(profileErrors.first_name ? styles.inputError : {}),
                     }}
+                    id="profile-first-name"
                     name="first_name"
                     value={form.first_name}
                     onChange={handleProfileChange}
@@ -410,6 +425,7 @@ export default function ProfilePage() {
                       ...styles.input,
                       ...(profileErrors.last_name ? styles.inputError : {}),
                     }}
+                    id="profile-last-name"
                     name="last_name"
                     value={form.last_name}
                     onChange={handleProfileChange}
@@ -443,6 +459,7 @@ export default function ProfilePage() {
                     ...(profileErrors.phone ? styles.inputError : {}),
                   }}
                   type="tel"
+                  id="profile-phone"
                   name="phone"
                   value={form.phone}
                   onChange={handleProfileChange}
@@ -464,7 +481,12 @@ export default function ProfilePage() {
 
               <div style={styles.formActions}>
                 <button
-                  style={styles.secondaryButton}
+                  style={{
+                    ...styles.secondaryButton,
+                    ...(!hasProfileChanges || profileSubmitting
+                      ? styles.disabledButton
+                      : {}),
+                  }}
                   type="button"
                   onClick={resetProfileForm}
                   disabled={!hasProfileChanges || profileSubmitting}
@@ -504,6 +526,7 @@ export default function ProfilePage() {
                   <input
                     style={styles.passwordInput}
                     type={showCurrentPassword ? "text" : "password"}
+                    id="current-password"
                     name="current_password"
                     value={passwordForm.current_password}
                     onChange={handlePasswordChange}
@@ -538,6 +561,7 @@ export default function ProfilePage() {
                   <input
                     style={styles.passwordInput}
                     type={showNewPassword ? "text" : "password"}
+                    id="new-password"
                     name="new_password"
                     value={passwordForm.new_password}
                     onChange={handlePasswordChange}
@@ -570,6 +594,7 @@ export default function ProfilePage() {
                 <input
                   style={styles.input}
                   type={showNewPassword ? "text" : "password"}
+                  id="confirm-password"
                   name="confirm_password"
                   value={passwordForm.confirm_password}
                   onChange={handlePasswordChange}
@@ -577,6 +602,11 @@ export default function ProfilePage() {
                   placeholder="Re-enter new password"
                   disabled={passwordSubmitting}
                   minLength={12}
+                  aria-describedby={
+                    passwordForm.confirm_password
+                      ? "confirm-password-feedback"
+                      : undefined
+                  }
                   required
                 />
               </label>
@@ -632,6 +662,8 @@ export default function ProfilePage() {
 
               {passwordForm.confirm_password && (
                 <p
+                  id="confirm-password-feedback"
+                  role="status"
                   style={
                     passwordForm.confirm_password === passwordForm.new_password
                       ? styles.passwordMatch
@@ -675,7 +707,7 @@ export default function ProfilePage() {
 
               <DetailRow
                 label="Account Status"
-                value={employee.active ? "Active" : "Inactive"}
+                value={accountIsActive ? "Active" : "Inactive"}
               />
             </div>
           </section>
@@ -733,6 +765,16 @@ function formatRole(role) {
   }
 
   return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+}
+
+function isActiveValue(value) {
+  return (
+    value === true ||
+    value === "true" ||
+    value === "TRUE" ||
+    value === 1 ||
+    value === "1"
+  );
 }
 
 function validatePassword(password) {
@@ -1006,6 +1048,7 @@ const styles = {
 
   input: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "46px",
     padding: "12px 13px",
     borderRadius: "10px",
@@ -1033,6 +1076,7 @@ const styles = {
 
   passwordInput: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "46px",
     padding: "12px 72px 12px 13px",
     borderRadius: "10px",
@@ -1196,17 +1240,22 @@ const styles = {
     marginBottom: "20px",
   },
 
-  error: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px",
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
-    padding: "14px 16px",
-    borderRadius: "12px",
+  errorWrapper: {
+    position: "relative",
     marginBottom: "20px",
+  },
+
+  errorCloseButton: {
+    position: "absolute",
+    top: "8px",
+    right: "8px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#991B1B",
+    cursor: "pointer",
+    fontSize: "20px",
+    lineHeight: 1,
+    padding: "4px 6px",
   },
 
   messageClose: {

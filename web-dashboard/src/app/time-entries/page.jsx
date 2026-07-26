@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
+import EmptyState from "../../components/ui/EmptyState";
 import api from "../../api/api";
 import { AuthContext } from "../../context/AuthContext";
+import { formatDateTime, formatMinutes } from "../../utils/dateTime";
 import { canAccessManagement } from "../../utils/roleAccess";
 
 export default function TimeEntriesPage() {
@@ -29,7 +33,7 @@ export default function TimeEntriesPage() {
 
       const response = await api.get("/admin/time-entries");
 
-      setEntries(Array.isArray(response.data) ? response.data : []);
+      setEntries(Array.isArray(response?.data) ? response.data : []);
     } catch (err) {
       console.error("Error loading time entries:", err);
 
@@ -79,19 +83,26 @@ export default function TimeEntriesPage() {
       const matchesSearch =
         normalizedSearch === "" || searchableText.includes(normalizedSearch);
 
+      const normalizedStatus = normalizeEntryStatus(entry.status);
+
       const matchesStatus =
-        statusFilter === "all" || entry.status === statusFilter;
+        statusFilter === "all" || normalizedStatus === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [entries, search, statusFilter]);
 
   const stats = useMemo(() => {
-    const openEntries = entries.filter((entry) => entry.status === "open");
-    const closedEntries = entries.filter((entry) => entry.status !== "open");
+    const openEntries = entries.filter(
+      (entry) => normalizeEntryStatus(entry.status) === "open",
+    );
+
+    const closedEntries = entries.filter(
+      (entry) => normalizeEntryStatus(entry.status) === "closed",
+    );
 
     const totalMinutes = closedEntries.reduce((total, entry) => {
-      return total + Number(entry.total_minutes || 0);
+      return total + safeNonNegativeNumber(entry.total_minutes);
     }, 0);
 
     return {
@@ -102,11 +113,13 @@ export default function TimeEntriesPage() {
     };
   }, [entries]);
 
+  const initialPageLoading = pageLoading && entries.length === 0;
+
   if (authLoading) {
     return (
       <main style={styles.permissionPage}>
-        <div style={styles.permissionCard} role="status" aria-live="polite">
-          Checking permissions...
+        <div style={styles.permissionCard}>
+          <LoadingState message="Checking permissions..." />
         </div>
       </main>
     );
@@ -149,8 +162,11 @@ export default function TimeEntriesPage() {
         </section>
 
         {error && (
-          <div style={styles.errorState} role="alert">
-            {error}
+          <div style={styles.messageWrapper}>
+            <ErrorState
+              message={error}
+              onRetry={pageLoading ? undefined : loadEntries}
+            />
           </div>
         )}
 
@@ -194,97 +210,187 @@ export default function TimeEntriesPage() {
             </div>
           </div>
 
-          {pageLoading ? (
-            <div style={styles.loadingState} role="status" aria-live="polite">
-              Loading time entries...
+          {initialPageLoading ? (
+            <LoadingState message="Loading time entries..." />
+          ) : entries.length === 0 ? (
+            <div style={styles.emptyStateWrapper}>
+              <EmptyState
+                title="No time entries yet"
+                description="Employee clock-in and clock-out activity will appear here."
+              />
             </div>
           ) : (
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableHeaderRow}>
-                    <th style={styles.headerCell}>Entry ID</th>
-                    <th style={styles.headerCell}>Employee</th>
-                    <th style={styles.headerCell}>Clock In</th>
-                    <th style={styles.headerCell}>Clock Out</th>
-                    <th style={styles.headerCell}>Worked Time</th>
-                    <th style={styles.headerCell}>Status</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredEntries.length === 0 ? (
-                    <tr>
-                      <td style={styles.emptyState} colSpan={6}>
-                        No time entries match the current filters.
-                      </td>
+            <>
+              <div
+                className="time-entries-desktop-table"
+                style={styles.tableWrapper}
+              >
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.tableHeaderRow}>
+                      <th style={styles.headerCell}>Entry ID</th>
+                      <th style={styles.headerCell}>Employee</th>
+                      <th style={styles.headerCell}>Clock In</th>
+                      <th style={styles.headerCell}>Clock Out</th>
+                      <th style={styles.headerCell}>Worked Time</th>
+                      <th style={styles.headerCell}>Status</th>
                     </tr>
-                  ) : (
-                    filteredEntries.map((entry, index) => (
-                      <tr
-                        key={entry.id}
-                        style={{
-                          backgroundColor:
-                            index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
-                        }}
-                      >
-                        <td style={styles.cell}>
-                          <span style={styles.entryId}>#{entry.id}</span>
-                        </td>
+                  </thead>
 
-                        <td style={styles.cell}>
-                          <EmployeeCell entry={entry} />
-                        </td>
-
-                        <td style={styles.cell}>
-                          {formatDateTime(entry.clock_in)}
-                        </td>
-
-                        <td style={styles.cell}>
-                          {entry.clock_out ? (
-                            formatDateTime(entry.clock_out)
-                          ) : (
-                            <span style={styles.openText}>Still open</span>
-                          )}
-                        </td>
-
-                        <td style={styles.cell}>
-                          {entry.total_minutes === null ||
-                          entry.total_minutes === undefined ? (
-                            "—"
-                          ) : (
-                            <div>
-                              <strong>
-                                {formatMinutes(entry.total_minutes)}
-                              </strong>
-
-                              <div style={styles.minutesText}>
-                                {Number(entry.total_minutes).toLocaleString()}{" "}
-                                min
-                              </div>
-                            </div>
-                          )}
-                        </td>
-
-                        <td style={styles.cell}>
-                          <span
-                            style={{
-                              ...styles.statusBadge,
-                              backgroundColor:
-                                entry.status === "open" ? "#16A34A" : "#2563EB",
-                            }}
-                          >
-                            {entry.status || "unknown"}
-                          </span>
+                  <tbody>
+                    {filteredEntries.length === 0 ? (
+                      <tr>
+                        <td style={styles.emptyState} colSpan={6}>
+                          No time entries match the current filters.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredEntries.map((entry, index) => (
+                        <tr
+                          key={entry.id}
+                          style={{
+                            backgroundColor:
+                              index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
+                          }}
+                        >
+                          <td style={styles.cell}>
+                            <span style={styles.entryId}>#{entry.id}</span>
+                          </td>
+
+                          <td style={styles.cell}>
+                            <EmployeeCell entry={entry} />
+                          </td>
+
+                          <td style={styles.cell}>
+                            {formatDateTime(entry.clock_in)}
+                          </td>
+
+                          <td style={styles.cell}>
+                            {entry.clock_out ? (
+                              formatDateTime(entry.clock_out)
+                            ) : (
+                              <span style={styles.openText}>Still open</span>
+                            )}
+                          </td>
+
+                          <td style={styles.cell}>
+                            {entry.total_minutes === null ||
+                            entry.total_minutes === undefined ? (
+                              "—"
+                            ) : (
+                              <div>
+                                <strong>
+                                  {formatMinutes(entry.total_minutes)}
+                                </strong>
+
+                                <div style={styles.minutesText}>
+                                  {safeNonNegativeNumber(
+                                    entry.total_minutes,
+                                  ).toLocaleString()}{" "}
+                                  min
+                                </div>
+                              </div>
+                            )}
+                          </td>
+
+                          <td style={styles.cell}>
+                            <span
+                              style={{
+                                ...styles.statusBadge,
+                                backgroundColor: getStatusColor(entry.status),
+                              }}
+                            >
+                              {normalizeEntryStatus(entry.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                className="time-entries-mobile-list"
+                style={styles.mobileList}
+              >
+                {filteredEntries.length === 0 ? (
+                  <EmptyState
+                    title="No matching time entries"
+                    description="Adjust the search or status filter and try again."
+                  />
+                ) : (
+                  filteredEntries.map((entry) => (
+                    <article
+                      key={`mobile-entry-${entry.id}`}
+                      style={styles.mobileCard}
+                    >
+                      <div style={styles.mobileCardHeader}>
+                        <EmployeeCell entry={entry} />
+
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            backgroundColor: getStatusColor(entry.status),
+                          }}
+                        >
+                          {normalizeEntryStatus(entry.status)}
+                        </span>
+                      </div>
+
+                      <div style={styles.mobileDetails}>
+                        <MobileDetail
+                          label="Entry ID"
+                          value={entry.id ? `#${entry.id}` : "—"}
+                        />
+
+                        <MobileDetail
+                          label="Clock In"
+                          value={formatDateTime(entry.clock_in)}
+                        />
+
+                        <MobileDetail
+                          label="Clock Out"
+                          value={
+                            entry.clock_out
+                              ? formatDateTime(entry.clock_out)
+                              : "Still open"
+                          }
+                        />
+
+                        <MobileDetail
+                          label="Worked Time"
+                          value={
+                            entry.total_minutes === null ||
+                            entry.total_minutes === undefined
+                              ? "—"
+                              : formatMinutes(entry.total_minutes)
+                          }
+                        />
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </>
           )}
         </section>
+
+        <style jsx>{`
+          .time-entries-mobile-list {
+            display: none !important;
+          }
+
+          @media (max-width: 820px) {
+            .time-entries-desktop-table {
+              display: none !important;
+            }
+
+            .time-entries-mobile-list {
+              display: grid !important;
+            }
+          }
+        `}</style>
       </div>
     </AppShell>
   );
@@ -331,39 +437,56 @@ function getInitials(entry) {
     return `${first}${last}`.toUpperCase();
   }
 
-  return String(entry.employee_id || "SS")
-    .slice(-2)
-    .toUpperCase();
+  const fallback = entry.employee_id ?? "SS";
+
+  return String(fallback).slice(-2).toUpperCase();
 }
 
-function formatDateTime(value) {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-
-  return date.toLocaleString();
+function MobileDetail({ label, value }) {
+  return (
+    <div style={styles.mobileDetail}>
+      <span style={styles.mobileDetailLabel}>{label}</span>
+      <strong style={styles.mobileDetailValue}>{value}</strong>
+    </div>
+  );
 }
 
-function formatMinutes(value) {
-  const totalMinutes = Number(value || 0);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours === 0) {
-    return `${minutes} min`;
+function normalizeEntryStatus(status) {
+  if (typeof status !== "string" || !status.trim()) {
+    return "unknown";
   }
 
-  if (minutes === 0) {
-    return `${hours} hr${hours === 1 ? "" : "s"}`;
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === "open" || normalized === "closed") {
+    return normalized;
   }
 
-  return `${hours} hr${hours === 1 ? "" : "s"} ${minutes} min`;
+  return "unknown";
+}
+
+function getStatusColor(status) {
+  const normalized = normalizeEntryStatus(status);
+
+  if (normalized === "open") {
+    return "#16A34A";
+  }
+
+  if (normalized === "closed") {
+    return "#2563EB";
+  }
+
+  return "#64748B";
+}
+
+function safeNonNegativeNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number < 0) {
+    return 0;
+  }
+
+  return number;
 }
 
 const styles = {
@@ -484,6 +607,7 @@ const styles = {
 
   searchInput: {
     width: "min(100%, 340px)",
+    boxSizing: "border-box",
     minWidth: "250px",
     padding: "12px",
     borderRadius: "10px",
@@ -492,6 +616,7 @@ const styles = {
   },
 
   filterSelect: {
+    boxSizing: "border-box",
     padding: "12px",
     borderRadius: "10px",
     border: "1px solid #CBD5E1",
@@ -592,24 +717,64 @@ const styles = {
     display: "inline-block",
   },
 
-  loadingState: {
-    padding: "48px",
-    textAlign: "center",
+  messageWrapper: {
+    marginBottom: "20px",
+  },
+
+  emptyStateWrapper: {
+    padding: "20px",
+  },
+
+  mobileList: {
+    display: "grid",
+    gap: "14px",
+    padding: "16px",
+  },
+
+  mobileCard: {
+    padding: "18px",
+    border: "1px solid #DCEBFF",
+    borderRadius: "16px",
+    backgroundColor: "#FFFFFF",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.05)",
+  },
+
+  mobileCardHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "12px",
+    paddingBottom: "14px",
+    borderBottom: "1px solid #E2E8F0",
+  },
+
+  mobileDetails: {
+    display: "grid",
+    gap: "10px",
+    paddingTop: "14px",
+  },
+
+  mobileDetail: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+  },
+
+  mobileDetailLabel: {
     color: "#64748B",
+    fontSize: "13px",
+  },
+
+  mobileDetailValue: {
+    color: "#172033",
+    fontSize: "13px",
+    textAlign: "right",
+    overflowWrap: "anywhere",
   },
 
   emptyState: {
     padding: "48px",
     textAlign: "center",
     color: "#64748B",
-  },
-
-  errorState: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    marginBottom: "20px",
   },
 };

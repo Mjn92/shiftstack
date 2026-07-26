@@ -1,12 +1,15 @@
 "use client";
 
 import { useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
 import { AuthContext } from "../../context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { employee, loading: authLoading, login } = useContext(AuthContext);
 
   const [email, setEmail] = useState("");
@@ -14,6 +17,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({
+    email: "",
+    password: "",
+  });
 
   useEffect(() => {
     if (!authLoading && employee) {
@@ -21,13 +28,35 @@ export default function LoginPage() {
     }
   }, [authLoading, employee, router]);
 
+  const passwordChanged = searchParams.get("message") === "password-changed";
+
   const handleLogin = async (event) => {
     event.preventDefault();
 
-    const normalizedEmail = email.trim().toLowerCase();
+    if (submitting) {
+      return;
+    }
 
-    if (!normalizedEmail || !password) {
-      setError("Enter your email address and password.");
+    const normalizedEmail = email.trim().toLowerCase();
+    const nextFieldErrors = {
+      email: "",
+      password: "",
+    };
+
+    if (!normalizedEmail) {
+      nextFieldErrors.email = "Email address is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      nextFieldErrors.email = "Enter a valid email address.";
+    }
+
+    if (!password) {
+      nextFieldErrors.password = "Password is required.";
+    }
+
+    setFieldErrors(nextFieldErrors);
+
+    if (nextFieldErrors.email || nextFieldErrors.password) {
+      setError("");
       return;
     }
 
@@ -42,6 +71,7 @@ export default function LoginPage() {
 
       setError(
         err?.response?.data?.error ||
+          err?.response?.data?.message ||
           err?.message ||
           "Invalid email or password.",
       );
@@ -53,8 +83,8 @@ export default function LoginPage() {
   if (authLoading || employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard} role="status" aria-live="polite">
-          Loading ShiftStack...
+        <div style={styles.loadingCard}>
+          <LoadingState message="Loading ShiftStack..." />
         </div>
       </main>
     );
@@ -62,8 +92,8 @@ export default function LoginPage() {
 
   return (
     <main style={styles.page}>
-      <section style={styles.layout}>
-        <aside style={styles.heroPanel}>
+      <section className="login-layout" style={styles.layout}>
+        <aside className="login-hero-panel" style={styles.heroPanel}>
           <div>
             <p style={styles.eyebrow}>Workforce Management</p>
 
@@ -88,7 +118,7 @@ export default function LoginPage() {
           </p>
         </aside>
 
-        <section style={styles.card}>
+        <section className="login-card" style={styles.card}>
           <div style={styles.brandBlock}>
             <div style={styles.logoMark} aria-hidden="true">
               SS
@@ -108,29 +138,60 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {error && (
-            <div style={styles.errorBox} role="alert">
-              {error}
+          {passwordChanged && !error && (
+            <div style={styles.successBox} role="status" aria-live="polite">
+              Password changed successfully. Sign in again with your new
+              password.
             </div>
           )}
 
-          <form onSubmit={handleLogin} noValidate>
+          {error && (
+            <div style={styles.messageWrapper}>
+              <ErrorState message={error} />
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} noValidate aria-busy={submitting}>
             <label style={styles.field}>
               <span style={styles.label}>Email Address</span>
 
               <input
-                style={styles.input}
+                style={{
+                  ...styles.input,
+                  ...(fieldErrors.email ? styles.inputError : {}),
+                }}
                 id="email"
                 name="email"
                 type="email"
+                className="login-input"
                 value={email}
                 autoComplete="username"
                 inputMode="email"
                 placeholder="name@example.com"
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setFieldErrors((current) => ({
+                    ...current,
+                    email: "",
+                  }));
+                }}
                 disabled={submitting}
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={
+                  fieldErrors.email ? "login-email-error" : undefined
+                }
                 required
               />
+
+              {fieldErrors.email && (
+                <span
+                  id="login-email-error"
+                  style={styles.fieldError}
+                  role="alert"
+                >
+                  {fieldErrors.email}
+                </span>
+              )}
             </label>
 
             <label style={styles.field}>
@@ -138,20 +199,35 @@ export default function LoginPage() {
 
               <div style={styles.passwordWrapper}>
                 <input
-                  style={styles.passwordInput}
+                  style={{
+                    ...styles.passwordInput,
+                    ...(fieldErrors.password ? styles.inputError : {}),
+                  }}
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
+                  className="login-input"
                   value={password}
                   autoComplete="current-password"
                   placeholder="Enter your password"
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setFieldErrors((current) => ({
+                      ...current,
+                      password: "",
+                    }));
+                  }}
                   disabled={submitting}
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={
+                    fieldErrors.password ? "login-password-error" : undefined
+                  }
                   required
                 />
 
                 <button
                   type="button"
+                  className="login-password-toggle"
                   style={styles.passwordToggle}
                   onClick={() => setShowPassword((current) => !current)}
                   disabled={submitting}
@@ -160,10 +236,21 @@ export default function LoginPage() {
                   {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
+
+              {fieldErrors.password && (
+                <span
+                  id="login-password-error"
+                  style={styles.fieldError}
+                  role="alert"
+                >
+                  {fieldErrors.password}
+                </span>
+              )}
             </label>
 
             <button
               type="submit"
+              className="login-submit-button"
               style={{
                 ...styles.button,
                 ...(submitting ? styles.disabledButton : {}),
@@ -190,6 +277,36 @@ export default function LoginPage() {
           </p>
         </section>
       </section>
+
+      <style jsx>{`
+        .login-input:focus-visible,
+        .login-password-toggle:focus-visible,
+        .login-submit-button:focus-visible {
+          outline: 3px solid #f59e0b;
+          outline-offset: 2px;
+        }
+
+        @media (max-width: 820px) {
+          .login-layout {
+            grid-template-columns: 1fr !important;
+            max-width: 560px !important;
+          }
+
+          .login-hero-panel {
+            display: none !important;
+          }
+
+          .login-card {
+            padding: 32px !important;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .login-card {
+            padding: 24px !important;
+          }
+        }
+      `}</style>
     </main>
   );
 }
@@ -374,15 +491,30 @@ const styles = {
     margin: 0,
   },
 
-  errorBox: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
+  messageWrapper: {
+    marginBottom: "20px",
+  },
+
+  successBox: {
+    backgroundColor: "#DCFCE7",
+    color: "#166534",
+    border: "1px solid #BBF7D0",
     padding: "13px 14px",
     borderRadius: "12px",
     marginBottom: "20px",
     fontWeight: "600",
     lineHeight: 1.5,
+  },
+
+  inputError: {
+    borderColor: "#DC2626",
+    boxShadow: "0 0 0 1px #DC2626",
+  },
+
+  fieldError: {
+    color: "#B91C1C",
+    fontSize: "12px",
+    fontWeight: "600",
   },
 
   field: {
@@ -399,6 +531,7 @@ const styles = {
 
   input: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "48px",
     border: "1px solid #CBD5E1",
     borderRadius: "12px",
@@ -414,6 +547,7 @@ const styles = {
 
   passwordInput: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "48px",
     border: "1px solid #CBD5E1",
     borderRadius: "12px",

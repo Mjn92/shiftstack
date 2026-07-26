@@ -17,8 +17,16 @@ import {
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
+import EmptyState from "../../components/ui/EmptyState";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
+import {
+  formatDate,
+  formatDateTime,
+  formatMinutes,
+} from "../../utils/dateTime";
 import "./time-history.css";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -47,7 +55,7 @@ export default function TimeHistoryPage() {
 
       const response = await api.get("/time/my-entries");
 
-      setEntries(Array.isArray(response.data) ? response.data : []);
+      setEntries(Array.isArray(response?.data) ? response.data : []);
     } catch (err) {
       console.error("Time history load error:", err);
 
@@ -103,7 +111,7 @@ export default function TimeHistoryPage() {
         formatDate(entry.clock_in),
         formatDateTime(entry.clock_in),
         formatDateTime(entry.clock_out),
-        formatHours(entry.total_minutes),
+        formatMinutes(entry.total_minutes),
       ]
         .filter(Boolean)
         .join(" ")
@@ -132,7 +140,7 @@ export default function TimeHistoryPage() {
     );
 
     const totalMinutes = completedEntries.reduce(
-      (sum, entry) => sum + Number(entry.total_minutes || 0),
+      (sum, entry) => sum + safeNonNegativeNumber(entry.total_minutes),
       0,
     );
 
@@ -171,6 +179,8 @@ export default function TimeHistoryPage() {
     Boolean(endDate) ||
     sortOrder !== "newest";
 
+  const initialPageLoading = pageLoading && entries.length === 0;
+
   const clearFilters = () => {
     setStatusFilter("all");
     setSearchTerm("");
@@ -200,11 +210,11 @@ export default function TimeHistoryPage() {
         total_minutes:
           entry.total_minutes === null || entry.total_minutes === undefined
             ? ""
-            : Number(entry.total_minutes),
+            : safeNonNegativeNumber(entry.total_minutes),
         total_hours:
           entry.total_minutes === null || entry.total_minutes === undefined
             ? ""
-            : (Number(entry.total_minutes) / 60).toFixed(2),
+            : (safeNonNegativeNumber(entry.total_minutes) / 60).toFixed(2),
         status: normalizeStatus(entry),
       }));
 
@@ -234,8 +244,8 @@ export default function TimeHistoryPage() {
   if (authLoading || !employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard} role="status" aria-live="polite">
-          Loading your time history...
+        <div style={styles.loadingCard}>
+          <LoadingState message="Loading your time history..." />
         </div>
       </main>
     );
@@ -297,17 +307,11 @@ export default function TimeHistoryPage() {
         />
 
         {error && (
-          <div style={styles.error} role="alert">
-            <span>{error}</span>
-
-            <button
-              type="button"
-              style={styles.errorButton}
-              onClick={loadEntries}
-              disabled={pageLoading}
-            >
-              Try Again
-            </button>
+          <div style={styles.messageWrapper}>
+            <ErrorState
+              message={error}
+              onRetry={pageLoading ? undefined : loadEntries}
+            />
           </div>
         )}
 
@@ -344,7 +348,7 @@ export default function TimeHistoryPage() {
         <section style={styles.filterCard}>
           <div style={styles.filterHeader}>
             <div>
-              <p style={styles.sectionEyebrow}>Day 31 Controls</p>
+              <p style={styles.sectionEyebrow}>History Controls</p>
               <h2 style={styles.sectionTitle}>Filter Time Entries</h2>
               <p style={styles.sectionSubtitle}>
                 Search records, select a date range, and control the sort order.
@@ -477,30 +481,30 @@ export default function TimeHistoryPage() {
             </span>
           </div>
 
-          {pageLoading ? (
-            <div style={styles.loadingState} role="status" aria-live="polite">
-              Loading time entries...
-            </div>
+          {initialPageLoading ? (
+            <LoadingState message="Loading time entries..." />
           ) : filteredEntries.length === 0 ? (
-            <div style={styles.emptyState}>
-              <h3 style={styles.emptyTitle}>No time entries found</h3>
-
-              <p style={styles.emptyText}>
-                {hasFilters
-                  ? "No records match the selected filters."
-                  : "Your completed and active shifts will appear here."}
-              </p>
-
-              {hasFilters && (
-                <button
-                  type="button"
-                  style={styles.secondaryButton}
-                  onClick={clearFilters}
-                >
-                  <FilterX size={16} aria-hidden="true" />
-                  Clear Filters
-                </button>
-              )}
+            <div style={styles.emptyStateWrapper}>
+              <EmptyState
+                title="No time entries found"
+                description={
+                  hasFilters
+                    ? "No records match the selected filters."
+                    : "Your completed and active shifts will appear here."
+                }
+                action={
+                  hasFilters ? (
+                    <button
+                      type="button"
+                      style={styles.secondaryButton}
+                      onClick={clearFilters}
+                    >
+                      <FilterX size={16} aria-hidden="true" />
+                      Clear Filters
+                    </button>
+                  ) : undefined
+                }
+              />
             </div>
           ) : (
             <>
@@ -550,7 +554,7 @@ export default function TimeHistoryPage() {
 
                           <td style={styles.td}>
                             <span style={styles.hoursBadge}>
-                              {formatHours(entry.total_minutes)}
+                              {formatEntryDuration(entry)}
                             </span>
                           </td>
 
@@ -621,7 +625,7 @@ export default function TimeHistoryPage() {
                         <span>Worked Time</span>
 
                         <span style={styles.hoursBadge}>
-                          {formatHours(entry.total_minutes)}
+                          {formatEntryDuration(entry)}
                         </span>
                       </div>
 
@@ -698,7 +702,18 @@ function StatCard({ icon: Icon, label, value, helper }) {
 }
 
 function normalizeStatus(entry) {
-  if (entry?.status === "open" || !entry?.clock_out) {
+  const status =
+    typeof entry?.status === "string" ? entry.status.trim().toLowerCase() : "";
+
+  if (status === "open") {
+    return "open";
+  }
+
+  if (status === "closed") {
+    return "closed";
+  }
+
+  if (!entry?.clock_out) {
     return "open";
   }
 
@@ -723,56 +738,22 @@ function getDateOnly(value) {
   return `${year}-${month}-${day}`;
 }
 
-function formatDate(value) {
-  if (!value) {
-    return "Unknown date";
+function safeNonNegativeNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number < 0) {
+    return 0;
   }
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return number;
 }
 
-function formatDateTime(value) {
-  if (!value) {
-    return "—";
+function formatEntryDuration(entry) {
+  if (entry?.total_minutes === null || entry?.total_minutes === undefined) {
+    return normalizeStatus(entry) === "open" ? "In progress" : "—";
   }
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatHours(minutes) {
-  if (minutes === null || minutes === undefined) {
-    return "Pending";
-  }
-
-  const numericMinutes = Number(minutes);
-
-  if (!Number.isFinite(numericMinutes)) {
-    return "Pending";
-  }
-
-  return `${(numericMinutes / 60).toFixed(2)} hrs`;
+  return formatMinutes(safeNonNegativeNumber(entry.total_minutes));
 }
 
 function formatDateRange(startDate, endDate) {
@@ -956,6 +937,7 @@ const styles = {
 
   input: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "46px",
     border: "1px solid #CBD5E1",
     borderRadius: "10px",
@@ -979,6 +961,7 @@ const styles = {
 
   searchInput: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "46px",
     border: "1px solid #CBD5E1",
     borderRadius: "10px",
@@ -1147,27 +1130,12 @@ const styles = {
     fontSize: "13px",
   },
 
-  loadingState: {
-    padding: "48px",
-    textAlign: "center",
-    color: "#64748B",
+  messageWrapper: {
+    marginBottom: "20px",
   },
 
-  emptyState: {
-    padding: "48px 24px",
-    textAlign: "center",
-  },
-
-  emptyTitle: {
-    color: "#172033",
-    fontSize: "20px",
-    margin: "0 0 8px",
-  },
-
-  emptyText: {
-    color: "#64748B",
-    lineHeight: 1.6,
-    margin: "0 0 18px",
+  emptyStateWrapper: {
+    padding: "20px",
   },
 
   pagination: {
@@ -1206,30 +1174,6 @@ const styles = {
     fontWeight: "700",
   },
 
-  error: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "16px",
-    flexWrap: "wrap",
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    marginBottom: "20px",
-  },
-
-  errorButton: {
-    minHeight: "38px",
-    backgroundColor: "#991B1B",
-    color: "#FFFFFF",
-    border: "none",
-    borderRadius: "9px",
-    padding: "9px 13px",
-    cursor: "pointer",
-    fontWeight: "700",
-  },
   mobileList: {
     gap: "14px",
   },

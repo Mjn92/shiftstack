@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
+import EmptyState from "../../components/ui/EmptyState";
 import { AuthContext } from "../../context/AuthContext";
 import { canAccessManagement } from "../../utils/roleAccess";
 import api from "../../api/api";
@@ -16,6 +19,8 @@ export default function ReportsPage() {
   const [reports, setReports] = useState([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [appliedStartDate, setAppliedStartDate] = useState("");
+  const [appliedEndDate, setAppliedEndDate] = useState("");
 
   const [pageLoading, setPageLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -25,31 +30,31 @@ export default function ReportsPage() {
 
   const hasAccess = canAccessManagement(employee?.role);
 
-  const buildQueryParams = useCallback(() => {
+  const buildQueryParams = useCallback((start, end) => {
     const params = new URLSearchParams();
 
-    if (startDate) {
-      params.set("start_date", startDate);
+    if (start) {
+      params.set("start_date", start);
     }
 
-    if (endDate) {
-      params.set("end_date", endDate);
+    if (end) {
+      params.set("end_date", end);
     }
 
     return params;
-  }, [startDate, endDate]);
+  }, []);
 
-  const validateDateRange = useCallback(() => {
-    if (startDate && endDate && startDate > endDate) {
+  const validateDateRange = useCallback((start, end) => {
+    if (start && end && start > end) {
       setError("Start date cannot be later than end date.");
       return false;
     }
 
     return true;
-  }, [startDate, endDate]);
+  }, []);
 
   const loadReports = useCallback(async () => {
-    if (!validateDateRange()) {
+    if (!validateDateRange(appliedStartDate, appliedEndDate)) {
       return;
     }
 
@@ -58,13 +63,13 @@ export default function ReportsPage() {
       setMessage("");
       setError("");
 
-      const params = buildQueryParams();
+      const params = buildQueryParams(appliedStartDate, appliedEndDate);
 
       const response = await api.get("/reports/weekly", {
         params,
       });
 
-      setReports(Array.isArray(response.data) ? response.data : []);
+      setReports(Array.isArray(response?.data) ? response.data : []);
     } catch (err) {
       console.error("Error loading reports:", err);
 
@@ -76,10 +81,10 @@ export default function ReportsPage() {
     } finally {
       setPageLoading(false);
     }
-  }, [buildQueryParams, validateDateRange]);
+  }, [appliedStartDate, appliedEndDate, buildQueryParams, validateDateRange]);
 
   const exportCsv = async () => {
-    if (!validateDateRange()) {
+    if (!validateDateRange(appliedStartDate, appliedEndDate)) {
       return;
     }
 
@@ -88,7 +93,7 @@ export default function ReportsPage() {
       setMessage("");
       setError("");
 
-      const params = buildQueryParams();
+      const params = buildQueryParams(appliedStartDate, appliedEndDate);
 
       const response = await api.get("/reports/weekly/export", {
         params,
@@ -98,7 +103,7 @@ export default function ReportsPage() {
       const contentDisposition = response.headers?.["content-disposition"];
       const fileName =
         getFileNameFromDisposition(contentDisposition) ||
-        buildReportFileName(startDate, endDate);
+        buildReportFileName(appliedStartDate, appliedEndDate);
 
       const blob = new Blob([response.data], {
         type: response.headers?.["content-type"] || "text/csv;charset=utf-8",
@@ -130,9 +135,23 @@ export default function ReportsPage() {
     }
   };
 
+  const applyFilters = () => {
+    setMessage("");
+    setError("");
+
+    if (!validateDateRange(startDate, endDate)) {
+      return;
+    }
+
+    setAppliedStartDate(startDate);
+    setAppliedEndDate(endDate);
+  };
+
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
+    setAppliedStartDate("");
+    setAppliedEndDate("");
     setMessage("");
     setError("");
   };
@@ -159,17 +178,17 @@ export default function ReportsPage() {
     const totalEmployees = reports.length;
 
     const totalShifts = reports.reduce(
-      (sum, row) => sum + Number(row.total_shifts || 0),
+      (sum, row) => sum + safeNonNegativeNumber(row.total_shifts),
       0,
     );
 
     const totalMinutes = reports.reduce(
-      (sum, row) => sum + Number(row.total_minutes || 0),
+      (sum, row) => sum + safeNonNegativeNumber(row.total_minutes),
       0,
     );
 
     const totalHours = reports.reduce(
-      (sum, row) => sum + Number(row.total_hours || 0),
+      (sum, row) => sum + safeNonNegativeNumber(row.total_hours),
       0,
     );
 
@@ -182,12 +201,14 @@ export default function ReportsPage() {
   }, [reports]);
 
   const hasFilters = Boolean(startDate || endDate);
+  const filtersChanged =
+    startDate !== appliedStartDate || endDate !== appliedEndDate;
 
   if (authLoading) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard} role="status" aria-live="polite">
-          Checking report access...
+        <div style={styles.loadingCard}>
+          <LoadingState message="Checking report access..." />
         </div>
       </main>
     );
@@ -226,8 +247,11 @@ export default function ReportsPage() {
         )}
 
         {error && (
-          <div style={styles.error} role="alert">
-            {error}
+          <div style={styles.messageWrapper}>
+            <ErrorState
+              message={error}
+              onRetry={pageLoading ? undefined : loadReports}
+            />
           </div>
         )}
 
@@ -309,12 +333,12 @@ export default function ReportsPage() {
 
             <button
               type="button"
-              onClick={loadReports}
+              onClick={applyFilters}
               style={{
                 ...styles.filterButton,
                 ...(pageLoading ? styles.disabledButton : {}),
               }}
-              disabled={pageLoading}
+              disabled={pageLoading || !filtersChanged}
             >
               {pageLoading ? "Loading..." : "Apply Filters"}
             </button>
@@ -341,13 +365,18 @@ export default function ReportsPage() {
             </div>
 
             <span style={styles.rangeBadge}>
-              {formatDateRange(startDate, endDate)}
+              {formatDateRange(appliedStartDate, appliedEndDate)}
             </span>
           </div>
 
-          {pageLoading ? (
-            <div style={styles.loadingState} role="status" aria-live="polite">
-              Loading reports...
+          {pageLoading && reports.length === 0 ? (
+            <LoadingState message="Loading reports..." />
+          ) : reports.length === 0 ? (
+            <div style={styles.emptyStateWrapper}>
+              <EmptyState
+                title="No weekly report data"
+                description="No report data was found for the selected date range."
+              />
             </div>
           ) : (
             <div style={styles.tableWrapper}>
@@ -363,49 +392,41 @@ export default function ReportsPage() {
                 </thead>
 
                 <tbody>
-                  {reports.length === 0 ? (
-                    <tr>
-                      <td style={styles.emptyState} colSpan={5}>
-                        No weekly report data found for the selected date range.
+                  {reports.map((row, index) => (
+                    <tr
+                      key={row.employee_id || row.email || index}
+                      style={{
+                        backgroundColor:
+                          index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
+                      }}
+                    >
+                      <td style={styles.cell}>
+                        <EmployeeCell row={row} />
+                      </td>
+
+                      <td style={styles.cell}>
+                        <span style={styles.emailText}>
+                          {row.email || "No email"}
+                        </span>
+                      </td>
+
+                      <td style={styles.cell}>
+                        <span style={styles.countBadge}>
+                          {safeNonNegativeNumber(row.total_shifts)}
+                        </span>
+                      </td>
+
+                      <td style={styles.cell}>
+                        {formatNumber(row.total_minutes)}
+                      </td>
+
+                      <td style={styles.cell}>
+                        <span style={styles.hoursBadge}>
+                          {formatHours(row.total_hours)}
+                        </span>
                       </td>
                     </tr>
-                  ) : (
-                    reports.map((row, index) => (
-                      <tr
-                        key={row.employee_id || row.email || index}
-                        style={{
-                          backgroundColor:
-                            index % 2 === 0 ? "#FFFFFF" : "#F8FBFF",
-                        }}
-                      >
-                        <td style={styles.cell}>
-                          <EmployeeCell row={row} />
-                        </td>
-
-                        <td style={styles.cell}>
-                          <span style={styles.emailText}>
-                            {row.email || "No email"}
-                          </span>
-                        </td>
-
-                        <td style={styles.cell}>
-                          <span style={styles.countBadge}>
-                            {Number(row.total_shifts || 0)}
-                          </span>
-                        </td>
-
-                        <td style={styles.cell}>
-                          {formatNumber(row.total_minutes)}
-                        </td>
-
-                        <td style={styles.cell}>
-                          <span style={styles.hoursBadge}>
-                            {formatHours(row.total_hours)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -459,14 +480,22 @@ function getInitials(row) {
   return "SS";
 }
 
+function safeNonNegativeNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number < 0) {
+    return 0;
+  }
+
+  return number;
+}
+
 function formatNumber(value) {
-  return Number(value || 0).toLocaleString();
+  return safeNonNegativeNumber(value).toLocaleString();
 }
 
 function formatHours(value) {
-  const hours = Number(value || 0);
-
-  return `${hours.toFixed(2)} hrs`;
+  return `${safeNonNegativeNumber(value).toFixed(2)} hrs`;
 }
 
 function formatDateRange(startDate, endDate) {
@@ -506,7 +535,13 @@ function getFileNameFromDisposition(value) {
     return "";
   }
 
-  return decodeURIComponent(match[1].replace(/"/g, "").trim());
+  const rawFileName = match[1].replace(/"/g, "").trim();
+
+  try {
+    return decodeURIComponent(rawFileName);
+  } catch {
+    return rawFileName;
+  }
 }
 
 function buildReportFileName(startDate, endDate) {
@@ -639,6 +674,7 @@ const styles = {
 
   input: {
     width: "100%",
+    boxSizing: "border-box",
     minHeight: "46px",
     border: "1px solid #CBD5E1",
     borderRadius: "10px",
@@ -819,31 +855,18 @@ const styles = {
     whiteSpace: "nowrap",
   },
 
-  loadingState: {
-    padding: "48px",
-    textAlign: "center",
-    color: "#64748B",
+  messageWrapper: {
+    marginBottom: "20px",
   },
 
-  emptyState: {
-    padding: "48px",
-    textAlign: "center",
-    color: "#64748B",
+  emptyStateWrapper: {
+    padding: "20px",
   },
 
   success: {
     backgroundColor: "#DCFCE7",
     color: "#166534",
     border: "1px solid #BBF7D0",
-    padding: "14px 16px",
-    borderRadius: "12px",
-    marginBottom: "20px",
-  },
-
-  error: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    border: "1px solid #FCA5A5",
     padding: "14px 16px",
     borderRadius: "12px",
     marginBottom: "20px",

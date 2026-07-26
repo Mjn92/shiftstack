@@ -4,7 +4,6 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
-  Bell,
   CheckCircle2,
   CircleAlert,
   Info,
@@ -13,8 +12,12 @@ import {
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import ErrorState from "../../components/ui/ErrorState";
+import EmptyState from "../../components/ui/EmptyState";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
+import { notifyNotificationsUpdated } from "../../utils/notificationEvents";
 
 import "./notifications.css";
 
@@ -26,6 +29,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [markingReadIds, setMarkingReadIds] = useState(() => new Set());
   const [error, setError] = useState("");
 
   const [filters, setFilters] = useState({
@@ -72,7 +76,12 @@ export default function NotificationsPage() {
           },
         });
 
-        const data = response?.data || {};
+        const data =
+          response?.data &&
+          typeof response.data === "object" &&
+          !Array.isArray(response.data)
+            ? response.data
+            : {};
 
         setNotifications(
           Array.isArray(data.notifications) ? data.notifications : [],
@@ -162,6 +171,10 @@ export default function NotificationsPage() {
   };
 
   const markRead = async (id) => {
+    if (markingReadIds.has(id)) {
+      return;
+    }
+
     const previousNotifications = notifications;
     const previousUnreadCount = unreadCount;
 
@@ -170,6 +183,12 @@ export default function NotificationsPage() {
     if (!targetNotification || targetNotification.read) {
       return;
     }
+
+    setMarkingReadIds((current) => {
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
 
     setNotifications((current) =>
       current.map((item) =>
@@ -189,9 +208,16 @@ export default function NotificationsPage() {
 
       await api.patch(`/notifications/${id}/read`);
 
+      notifyNotificationsUpdated();
+
       if (filters.read === "unread") {
+        const nextPage =
+          notifications.length === 1 && pagination.page > 1
+            ? pagination.page - 1
+            : pagination.page;
+
         await loadNotifications({
-          page: pagination.page,
+          page: nextPage,
           limit: pagination.limit,
           activeFilters: filters,
         });
@@ -207,6 +233,12 @@ export default function NotificationsPage() {
           err.response?.data?.message ||
           "Could not mark notification as read.",
       );
+    } finally {
+      setMarkingReadIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -240,6 +272,8 @@ export default function NotificationsPage() {
 
       await api.patch("/notifications/read-all");
 
+      notifyNotificationsUpdated();
+
       if (filters.read === "unread") {
         await loadNotifications({
           page: 1,
@@ -267,7 +301,9 @@ export default function NotificationsPage() {
   if (loading || !employee) {
     return (
       <main style={styles.loadingPage}>
-        <div style={styles.loadingCard}>Loading notifications...</div>
+        <div style={styles.loadingCard}>
+          <LoadingState message="Loading notifications..." />
+        </div>
       </main>
     );
   }
@@ -311,8 +347,20 @@ export default function NotificationsPage() {
         />
 
         {error && (
-          <div style={styles.error} role="alert">
-            {error}
+          <div style={styles.messageWrapper}>
+            <ErrorState
+              message={error}
+              onRetry={
+                pageLoading
+                  ? undefined
+                  : () =>
+                      loadNotifications({
+                        page: pagination.page,
+                        limit: pagination.limit,
+                        activeFilters: filters,
+                      })
+              }
+            />
           </div>
         )}
 
@@ -455,8 +503,12 @@ export default function NotificationsPage() {
                           type="button"
                           className="notification-card__read-button"
                           onClick={() => markRead(item.id)}
+                          disabled={markingReadIds.has(item.id)}
+                          aria-busy={markingReadIds.has(item.id)}
                         >
-                          Mark as read
+                          {markingReadIds.has(item.id)
+                            ? "Updating..."
+                            : "Mark as read"}
                         </button>
                       )}
                     </div>
@@ -559,17 +611,14 @@ function NotificationEmptyState({ filters }) {
   const filtered = filters.read !== "all" || filters.type !== "all";
 
   return (
-    <section className="notification-empty">
-      <Bell size={34} aria-hidden="true" />
-
-      <h2>{filtered ? "No matching notifications" : "Your inbox is clear"}</h2>
-
-      <p>
-        {filtered
+    <EmptyState
+      title={filtered ? "No matching notifications" : "Your inbox is clear"}
+      description={
+        filtered
           ? "No notifications match the current filters."
-          : "New ShiftStack alerts and messages will appear here."}
-      </p>
-    </section>
+          : "New ShiftStack alerts and messages will appear here."
+      }
+    />
   );
 }
 
@@ -597,7 +646,17 @@ function normalizeNotificationType(type) {
     return "info";
   }
 
-  return type.trim().toLowerCase();
+  const normalized = type.trim().toLowerCase();
+
+  const supportedTypes = new Set([
+    "info",
+    "success",
+    "warning",
+    "error",
+    "system",
+  ]);
+
+  return supportedTypes.has(normalized) ? normalized : "info";
 }
 
 function formatNotificationType(type) {
@@ -679,6 +738,10 @@ const styles = {
     backgroundColor: "#F4F7FB",
   },
 
+  messageWrapper: {
+    marginBottom: "20px",
+  },
+
   loadingCard: {
     backgroundColor: "#FFFFFF",
     border: "1px solid #DCEBFF",
@@ -686,14 +749,5 @@ const styles = {
     padding: "24px",
     color: "#475569",
     boxShadow: "0 10px 25px rgba(0, 0, 0, 0.06)",
-  },
-
-  error: {
-    backgroundColor: "#FEE2E2",
-    color: "#991B1B",
-    padding: "12px 16px",
-    borderRadius: "10px",
-    marginBottom: "20px",
-    border: "1px solid #FECACA",
   },
 };
