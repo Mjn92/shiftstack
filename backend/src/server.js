@@ -16,6 +16,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 const timeRoutes = require("./routes/timeRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
@@ -81,7 +82,7 @@ app.use(
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -91,17 +92,17 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many login or registration attempts. Please try again later.",
+    error: "Too many login attempts. Please try again later.",
   },
 });
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -111,7 +112,7 @@ const registerLimiter = rateLimit({
 
 const clockLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -121,7 +122,7 @@ const clockLimiter = rateLimit({
 
 const reportLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -131,7 +132,7 @@ const reportLimiter = rateLimit({
 
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -141,8 +142,8 @@ const adminLimiter = rateLimit({
 
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
-  delayAfter: 50,
-  delayMs: (hits) => hits * 100,
+  delayAfter: 500,
+  delayMs: (hits) => Math.min((hits - 500) * 25, 1000),
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -165,6 +166,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/time", timeRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 const PORT = process.env.PORT || 5000;
 
