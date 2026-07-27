@@ -12,6 +12,7 @@ import {
   History,
   LayoutDashboard,
   LogOut,
+  Plane,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -43,6 +44,11 @@ const employeeLinks = [
     href: "/weekly-summary",
     label: "Weekly Summary",
     icon: CalendarDays,
+  },
+  {
+    href: "/pto",
+    label: "Paid Time Off",
+    icon: Plane,
   },
   {
     href: "/notifications",

@@ -335,6 +335,14 @@ export default function DashboardPage() {
                   buttonText="View History"
                   onClick={() => router.push("/time-history")}
                 />
+                <DashboardCard
+                  styles={styles}
+                  title="Paid Time Off"
+                  value="PTO"
+                  text="Request time off and review your PTO requests."
+                  buttonText="Open PTO"
+                  onClick={() => router.push("/pto")}
+                />
 
                 <DashboardCard
                   styles={styles}
