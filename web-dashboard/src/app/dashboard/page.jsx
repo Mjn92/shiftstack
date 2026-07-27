@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Bell,
   CalendarClock,
+  CalendarDays,
   Clock3,
   History,
   RefreshCw,
@@ -295,7 +296,6 @@ export default function DashboardPage() {
                   onViewAll={() => router.push("/time-history")}
                 />
               </section>
-
               <DashboardSection
                 title="Quick Actions"
                 headingId="quick-actions-heading"
@@ -335,6 +335,7 @@ export default function DashboardPage() {
                   buttonText="View History"
                   onClick={() => router.push("/time-history")}
                 />
+
                 <DashboardCard
                   styles={styles}
                   title="Paid Time Off"
@@ -342,6 +343,15 @@ export default function DashboardPage() {
                   text="Request time off and review your PTO requests."
                   buttonText="Open PTO"
                   onClick={() => router.push("/pto")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="My Calendar"
+                  value="Schedule"
+                  text="View your worked shifts and upcoming time off."
+                  buttonText="Open Calendar"
+                  onClick={() => router.push("/calendar")}
                 />
 
                 <DashboardCard

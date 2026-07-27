@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
+  CalendarRange,
   ClipboardList,
   Clock3,
   FileBarChart,
@@ -49,6 +50,11 @@ const employeeLinks = [
     href: "/pto",
     label: "Paid Time Off",
     icon: Plane,
+  },
+  {
+    href: "/calendar",
+    label: "My Calendar",
+    icon: CalendarRange,
   },
   {
     href: "/notifications",
@@ -96,7 +102,6 @@ export default function Sidebar({ mobile = false, onNavigate }) {
   const { employee, logout } = useContext(AuthContext);
 
   const showManagement = canAccessManagement(employee?.role);
-
   const showAdmin = canAccessAdmin(employee?.role);
 
   const { unreadCount } = useUnreadNotifications(Boolean(employee));
@@ -145,7 +150,6 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
           <p className="app-sidebar__user-role">
             <ShieldCheck size={14} aria-hidden="true" />
-
             {formatRole(employee?.role)}
           </p>
         </div>
@@ -266,7 +270,6 @@ function getInitials(employee) {
   }
 
   const firstInitial = employee.first_name?.charAt(0) || "";
-
   const lastInitial = employee.last_name?.charAt(0) || "";
 
   return `${firstInitial}${lastInitial}`.toUpperCase() || "SS";
