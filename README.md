@@ -1,7 +1,6 @@
 # ShiftStack
 
-> Modern workforce management platform built to demonstrate
-> enterprise-grade full-stack software engineering.
+> Workforce management platform built to demonstrate production-ready full-stack software engineering.
 
 ![React Native](https://img.shields.io/badge/React_Native-Expo-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -10,14 +9,73 @@
 ![RabbitMQ](https://img.shields.io/badge/Messaging-RabbitMQ-orange)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-ShiftStack is a modern workforce management platform built to demonstrate
-production-ready full-stack software engineering. It includes a React Native
-mobile application, a Next.js administrative dashboard, an Express.js API,
-RabbitMQ background workers, and a PostgreSQL database hosted on Supabase.
+ShiftStack is a full-stack workforce management application for employee time tracking, user administration, reporting, and operational auditing.
 
-The project showcases secure authentication, role-based authorization,
-employee management, audit logging, asynchronous messaging, reporting,
-Dockerized development, and cloud deployment.
+The project combines a React Native mobile app, Next.js web dashboard, Express.js REST API, RabbitMQ background processing, and PostgreSQL hosted on Supabase.
+
+It was built as a portfolio project to demonstrate real-world application architecture, secure authentication, role-based authorization, asynchronous messaging, cloud deployment, and maintainable full-stack development practices.
+
+---
+
+# Highlights
+
+- Full-stack mobile and web application
+- Secure JWT access and refresh token authentication
+- Role-based access for employees, managers, and administrators
+- Employee clock-in and clock-out workflow
+- RabbitMQ asynchronous background processing
+- Employee account administration
+- Weekly reporting and CSV exports
+- Audit logging
+- Rate limiting and security middleware
+- Dockerized local development
+- Cloud deployment across Vercel, Render, Supabase, and CloudAMQP
+
+---
+
+# Architecture
+
+```text
+React Native Mobile App            Next.js Web Dashboard
+          │                                │
+          └───────────────┬────────────────┘
+                          │
+                     HTTPS REST API
+                          │
+                   Express.js Backend
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+         RabbitMQ                  PostgreSQL
+       Message Broker               Supabase
+             │                         │
+             ▼                         │
+      Background Workers ──────────────┘
+```
+
+## Request Flow
+
+```text
+Client
+  │
+  ▼
+Express API
+  │
+  ├── Authentication / Authorization
+  ├── Validation
+  ├── Rate Limiting
+  │
+  ▼
+RabbitMQ
+  │
+  ▼
+Worker Service
+  │
+  ▼
+PostgreSQL
+```
+
+RabbitMQ is used for background clock-event processing, keeping the API layer separated from worker-side database operations.
 
 ---
 
@@ -25,77 +83,53 @@ Dockerized development, and cloud deployment.
 
 ## Employee
 
-- Secure authentication
-- Clock In / Clock Out
-- Live shift status
-- View personal time history
+- Secure login
 - JWT authentication
-- Refresh token authentication
-- Mobile application
-
----
+- Refresh token support
+- Clock in
+- Clock out
+- Live shift status
+- Personal time history
+- React Native mobile interface
 
 ## Manager
 
-- Employee oversight
+- View employee records
 - View employee time entries
-- Weekly reports
-- CSV report exports
-- Employee management
-- Activate / Deactivate employees
-- Edit employee profiles
-- Department management
-
----
+- Weekly reporting
+- CSV report export
+- Employee account management
+- Activate and deactivate employee accounts
+- Edit employee information
 
 ## Administrator
 
-- Complete employee management
-- Manager management
-- Administrator management
-- Create employees
-- Edit employees
-- Activate / Deactivate accounts
-- Reset employee passwords (planned)
-- Role management
-- Audit logs
-- System reports
-- Dashboard statistics
-
----
-
-# Architecture
-
-```text
-React Native App           Next.js Dashboard
-        │                        │
-        └──────────────┬─────────┘
-                       │
-                  HTTPS REST API
-                       │
-                Express.js Backend
-                       │
-          ┌────────────┴────────────┐
-          │                         │
-      RabbitMQ                 PostgreSQL
-      Message Broker            (Supabase)
-          │
-          ▼
-   Background Workers
-```
+- Full employee management
+- Manager and administrator account management
+- Create user accounts
+- Edit user accounts
+- Activate and deactivate accounts
+- Role-based account administration
+- Audit log access
+- Reporting
+- Administrative dashboard
 
 ---
 
 # Tech Stack
 
-## Frontend
+## Mobile
 
 - React Native
 - Expo
-- Next.js 16
 - Axios
+- Expo SecureStore
 
----
+## Web
+
+- Next.js 16
+- React
+- Axios
 
 ## Backend
 
@@ -103,50 +137,71 @@ React Native App           Next.js Dashboard
 - Express.js
 - PostgreSQL
 - RabbitMQ
-- JWT Authentication
+- `pg`
+- `amqplib`
+
+## Authentication & Security
+
+- JSON Web Tokens
+- Refresh tokens
 - bcrypt
 - Express Validator
 - Helmet
 - Express Rate Limit
 - Express Slow Down
+- Role-based authorization
+- Audit logging
 
----
-
-## Cloud Services
-
-- Vercel
-- Render
-- Supabase
-- CloudAMQP
-
----
-
-## DevOps
+## Infrastructure
 
 - Docker
 - Docker Compose
-- Git
+- Vercel
+- Render
+- Supabase PostgreSQL
+- CloudAMQP
 - GitHub
 
 ---
 
 # Security
 
-ShiftStack follows security best practices including:
+ShiftStack includes multiple application-level security controls.
 
-- JWT Access Tokens
-- JWT Refresh Tokens
+## Authentication
+
 - Password hashing with bcrypt
-- Helmet security headers
-- Express Rate Limiting
-- Express Slow Down
-- Role-based authorization
+- JWT access tokens
+- JWT refresh tokens
+- Refresh token persistence
 - Protected API routes
-- Environment variable management
-- Audit logging
-- Session management
-- Refresh token storage
-- Secure password validation
+- Token expiration
+- Logout and token invalidation workflow
+
+## Authorization
+
+Three application roles are supported:
+
+```text
+Employee
+Manager
+Administrator
+```
+
+Access to protected functionality is enforced on the backend rather than relying only on frontend visibility.
+
+## API Protection
+
+- Helmet HTTP security headers
+- Request rate limiting
+- Request slowdown protection
+- Request validation with Express Validator
+- CORS configuration
+- Environment-based secret configuration
+
+## Auditing
+
+Important events can be written to the audit log, including authentication and time-tracking activity.
 
 ---
 
@@ -154,66 +209,80 @@ ShiftStack follows security best practices including:
 
 ## Authentication
 
-- User Registration
-- Secure Login
-- JWT Authentication
-- Refresh Tokens
-- Protected Routes
-- Role-based Access Control
-
----
+- Registration
+- Login
+- Logout
+- Access tokens
+- Refresh tokens
+- Current-user endpoint
+- Protected routes
+- Role-based authorization
+- Login protection
 
 ## Time Tracking
 
-- Clock In
-- Clock Out
-- Live Shift Status
-- Employee Time History
-- Manager Time Review
-
----
+- Clock in
+- Clock out
+- Current clock status
+- Personal time-entry history
+- Worked-time calculation
+- Prevention of duplicate clock-ins
+- RabbitMQ-based clock event processing
 
 ## Employee Management
 
-- Create Employees
-- Edit Employees
-- Activate Employees
-- Deactivate Employees
-- Search Employees
-- Filter by Role
-- Filter by Status
-- Dashboard Statistics
-
----
+- List employees
+- View employee information
+- Create employee accounts
+- Edit accounts
+- Activate accounts
+- Deactivate accounts
+- Role-based management permissions
 
 ## Reporting
 
-- Weekly Reports
-- CSV Export
-- Employee Filtering
-- Date Filtering
-
----
+- Weekly reports
+- Employee filtering
+- Date filtering
+- Total shift calculation
+- Total hours calculation
+- CSV export
 
 ## Administration
 
-- Audit Logs
-- Dashboard
-- Employee Dashboard
-- User Management
-- Role Management
-- System Statistics
-
----
+- Administrative dashboard
+- Employee management
+- Time-entry review
+- Audit logs
+- Reporting
+- Role management
 
 ## Infrastructure
 
-- RabbitMQ Background Workers
-- Docker Development Environment
-- Supabase PostgreSQL
-- Render Backend Deployment
-- Vercel Frontend Deployment
-- CloudAMQP Integration
+- RabbitMQ background worker
+- Local Docker environment
+- Hosted PostgreSQL with Supabase
+- Backend deployment with Render
+- Web deployment with Vercel
+- Hosted RabbitMQ with CloudAMQP
+
+---
+
+# Role Model
+
+| Capability                 | Employee | Manager | Administrator |
+| -------------------------- | :------: | :-----: | :-----------: |
+| Clock in / out             |   Yes    |   Yes   |      Yes      |
+| View own time history      |   Yes    |   Yes   |      Yes      |
+| View employee records      |    No    |   Yes   |      Yes      |
+| View employee time entries |    No    |   Yes   |      Yes      |
+| Create employees           |    No    |   Yes   |      Yes      |
+| Edit employees             |    No    |   Yes   |      Yes      |
+| Manage managers            |    No    |   No    |      Yes      |
+| Manage administrators      |    No    |   No    |      Yes      |
+| View weekly reports        |    No    |   Yes   |      Yes      |
+| Export reports             |    No    |   Yes   |      Yes      |
+| View audit logs            |    No    |   No    |      Yes      |
 
 ---
 
@@ -223,13 +292,14 @@ ShiftStack follows security best practices including:
 shiftstack/
 │
 ├── backend/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routes/
-│   ├── workers/
-│   ├── services/
-│   ├── config/
-│   └── utils/
+│   └── src/
+│       ├── config/
+│       ├── controllers/
+│       ├── middleware/
+│       ├── routes/
+│       ├── services/
+│       ├── utils/
+│       └── workers/
 │
 ├── web-dashboard/
 │
@@ -240,83 +310,6 @@ shiftstack/
 ├── docker-compose.yml
 │
 └── README.md
-```
-
----
-
-# Installation
-
-Clone the repository
-
-```bash
-git clone https://github.com/Mjn92/shiftstack.git
-
-cd shiftstack
-```
-
-Install dependencies
-
-```bash
-cd backend
-npm install
-
-cd ../web-dashboard
-npm install
-
-cd ../mobile-app
-npm install
-```
-
-Start Docker services
-
-```bash
-docker compose up -d
-```
-
-Run Backend
-
-```bash
-cd backend
-
-npm run dev
-```
-
-Run Web Dashboard
-
-```bash
-cd web-dashboard
-
-npm run dev
-```
-
-Run Mobile App
-
-```bash
-cd mobile-app
-
-npm start
-```
-
----
-
-# Environment Variables
-
-```env
-DATABASE_URL=
-
-JWT_SECRET=
-
-JWT_REFRESH_SECRET=
-
-JWT_EXPIRES_IN=1h
-
-JWT_REFRESH_EXPIRES_IN=7d
-
-RABBITMQ_URL=
-
-FRONTEND_URL=http://localhost:3000
-
-NODE_ENV=development
 ```
 
 ---
@@ -333,8 +326,6 @@ POST /api/auth/refresh
 GET  /api/auth/me
 ```
 
----
-
 ## Time Tracking
 
 ```http
@@ -343,8 +334,6 @@ POST /api/time/clock-out
 GET  /api/time/status
 GET  /api/time/my-entries
 ```
-
----
 
 ## Employee Management
 
@@ -357,16 +346,12 @@ PATCH  /api/admin/employees/:id/activate
 PATCH  /api/admin/employees/:id/deactivate
 ```
 
----
-
-## Reports
+## Reporting
 
 ```http
 GET /api/reports/weekly
 GET /api/reports/weekly/export
 ```
-
----
 
 ## Audit Logs
 
@@ -376,15 +361,135 @@ GET /api/admin/audit-logs
 
 ---
 
+# Local Development
+
+## Requirements
+
+- Node.js
+- npm
+- Docker Desktop
+- Git
+
+## Clone
+
+```bash
+git clone https://github.com/Mjn92/shiftstack.git
+cd shiftstack
+```
+
+## Install Dependencies
+
+### Backend
+
+```bash
+cd backend
+npm install
+```
+
+### Web Dashboard
+
+```bash
+cd ../web-dashboard
+npm install
+```
+
+### Mobile App
+
+```bash
+cd ../mobile-app
+npm install
+```
+
+---
+
+# Environment Variables
+
+Create the backend `.env` file with values similar to:
+
+```env
+PORT=5000
+
+DATABASE_URL=
+
+JWT_SECRET=
+JWT_REFRESH_SECRET=
+
+JWT_EXPIRES_IN=1h
+JWT_REFRESH_EXPIRES_IN=7d
+
+RABBITMQ_URL=
+
+NODE_ENV=development
+```
+
+Do not commit production secrets to the repository.
+
+---
+
+# Start Local Infrastructure
+
+From the repository root:
+
+```bash
+docker compose up -d
+```
+
+This starts the local development services defined in Docker Compose.
+
+---
+
+# Run the Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+Run the RabbitMQ clock worker separately:
+
+```bash
+npm run worker:clock
+```
+
+---
+
+# Run the Web Dashboard
+
+```bash
+cd web-dashboard
+npm run dev
+```
+
+The development dashboard is available at:
+
+```text
+http://localhost:3000
+```
+
+---
+
+# Run the Mobile App
+
+```bash
+cd mobile-app
+npm start
+```
+
+Use Expo Go or an appropriate Expo development build to launch the app.
+
+---
+
 # Deployment
 
-| Component | Service |
-|------------|----------|
-| Web Dashboard | Vercel |
-| Backend API | Render |
-| Database | Supabase PostgreSQL |
-| RabbitMQ | CloudAMQP |
-| Mobile | Expo |
+| Component      | Platform            |
+| -------------- | ------------------- |
+| Web Dashboard  | Vercel              |
+| Backend API    | Render              |
+| Database       | Supabase PostgreSQL |
+| Message Broker | CloudAMQP           |
+| Mobile         | Expo                |
+
+Production configuration is stored through deployment-platform environment variables rather than committed `.env` files.
 
 ---
 
@@ -392,58 +497,95 @@ GET /api/admin/audit-logs
 
 ## Completed
 
-- Secure Authentication
-- JWT Refresh Tokens
-- Employee Management
-- Role-based Authorization
-- RabbitMQ Workers
-- Audit Logging
-- Reports
-- CSV Export
-- Docker Environment
-- Cloud Deployment
-- User Dashboard
-- Admin Dashboard
-
----
+- Project architecture
+- Express backend
+- PostgreSQL integration
+- JWT authentication
+- Refresh token authentication
+- Role-based authorization
+- Employee time tracking
+- RabbitMQ worker processing
+- Employee management
+- Audit logging
+- Weekly reports
+- CSV export
+- Security middleware
+- React Native mobile workflow
+- Administrative web dashboard
+- Docker development environment
+- Cloud deployment
 
 ## In Progress
 
-- Password Reset
-- Employee Profiles
-- Department Management
-- Manager Permissions
-
----
+- Employee-focused web dashboard
+- Employee profile improvements
+- Manager permission refinement
+- Password reset workflow
 
 ## Planned
 
-- Shift Scheduling
-- PTO Requests
-- GPS Clock Verification
-- QR Code Clock In
-- Push Notifications
-- Payroll Integration
-- Analytics Dashboard
-- Multi-company Support
+- Shift scheduling
+- PTO requests
+- Department management
+- GPS clock verification
+- QR-code clock in
+- Push notifications
+- Payroll integration
+- Analytics dashboard
+- Multi-company support
+- Automated operational maintenance
 
 ---
 
-# Why ShiftStack?
+# Portfolio Goals
 
-ShiftStack demonstrates modern enterprise software development concepts including:
+ShiftStack is designed to demonstrate experience with:
 
 - Full-stack JavaScript development
-- Mobile application development
-- Enterprise REST APIs
-- Secure authentication
+- React and React Native development
+- REST API design
+- Authentication architecture
 - Role-based authorization
-- RabbitMQ asynchronous messaging
-- PostgreSQL database design
+- Relational database design
+- RabbitMQ messaging
+- Background workers
+- API security
+- Audit logging
+- Reporting systems
+- Docker
 - Cloud deployment
-- Docker containerization
-- Production-ready architecture
-- Scalable application design
+- Production troubleshooting
+
+---
+
+# Future Architecture Goals
+
+Potential future improvements include:
+
+```text
+Load Balancer
+     │
+     ▼
+Multiple API Instances
+     │
+     ▼
+RabbitMQ Cluster
+     │
+     ▼
+Worker Pool
+     │
+     ▼
+PostgreSQL
+```
+
+Other planned improvements include:
+
+- Centralized application monitoring
+- CI/CD validation
+- Automated tests
+- Health monitoring
+- Scheduled maintenance tasks
+- Improved secret rotation processes
 
 ---
 
