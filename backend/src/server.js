@@ -20,6 +20,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const ptoRoutes = require("./routes/ptoRoutes");
 const calendarRoutes = require("./routes/calendarRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
+const documentRoutes = require("./routes/documentRoutes");
 
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
@@ -186,6 +187,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/pto", ptoRoutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/documents", documentRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({
