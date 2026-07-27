@@ -19,6 +19,7 @@ const reportRoutes = require("./routes/reportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const ptoRoutes = require("./routes/ptoRoutes");
 const calendarRoutes = require("./routes/calendarRoutes");
+const announcementRoutes = require("./routes/announcementRoutes");
 
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
@@ -29,17 +30,23 @@ app.set("trust proxy", 1);
 const logDirectory = path.join(__dirname, "../logs");
 
 if (!fs.existsSync(logDirectory)) {
-  fs.mkdirSync(logDirectory, { recursive: true });
+  fs.mkdirSync(logDirectory, {
+    recursive: true,
+  });
 }
 
 const accessLogStream = fs.createWriteStream(
   path.join(logDirectory, "access.log"),
-  { flags: "a" },
+  {
+    flags: "a",
+  },
 );
 
 const errorLogStream = fs.createWriteStream(
   path.join(logDirectory, "error.log"),
-  { flags: "a" },
+  {
+    flags: "a",
+  },
 );
 
 const allowedOrigins = [
@@ -50,7 +57,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin(origin, callback) {
-    // Allow Postman, curl, server-to-server requests
+    // Allow Postman, curl, and server-to-server requests.
     if (!origin) {
       return callback(null, true);
     }
@@ -74,7 +81,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use(express.json());
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
 app.use(helmet());
 
 app.use(
@@ -156,7 +168,8 @@ app.use("/api", apiLimiter);
 
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", registerLimiter);
-app.use("/api/time", clockLimiter);
+app.use("/api/time/clock-in", clockLimiter);
+app.use("/api/time/clock-out", clockLimiter);
 app.use("/api/reports", reportLimiter);
 app.use("/api/admin", adminLimiter);
 
@@ -172,6 +185,13 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/pto", ptoRoutes);
 app.use("/api/calendar", calendarRoutes);
+app.use("/api/announcements", announcementRoutes);
+
+app.use((req, res) => {
+  return res.status(404).json({
+    error: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
 
 app.use((err, req, res, next) => {
   if (
@@ -189,6 +209,20 @@ app.use((err, req, res, next) => {
   }
 
   return next(err);
+});
+
+app.use((err, req, res, next) => {
+  console.error(
+    `Unhandled request error for ${req.method} ${req.originalUrl}:`,
+    err,
+  );
+
+  return res.status(err.status || err.statusCode || 500).json({
+    error:
+      process.env.NODE_ENV === "production"
+        ? "An unexpected server error occurred."
+        : err.message || "An unexpected server error occurred.",
+  });
 });
 
 const PORT = process.env.PORT || 5000;
@@ -225,7 +259,7 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (reason) => {
   fs.appendFileSync(
     path.join(logDirectory, "error.log"),
-    `[${new Date().toISOString()}] ${reason}\n\n`,
+    `[${new Date().toISOString()}] ${reason?.stack || reason}\n\n`,
   );
 
   console.error(reason);

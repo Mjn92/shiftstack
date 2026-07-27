@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   UserRound,
   Users,
+  Megaphone,
 } from "lucide-react";
 
 import { AuthContext } from "../../context/AuthContext";
@@ -55,6 +56,11 @@ const employeeLinks = [
     href: "/calendar",
     label: "My Calendar",
     icon: CalendarRange,
+  },
+  {
+    href: "/announcements",
+    label: "Announcements",
+    icon: Megaphone,
   },
   {
     href: "/notifications",
