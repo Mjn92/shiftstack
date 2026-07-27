@@ -17,6 +17,8 @@ const authRoutes = require("./routes/authRoutes");
 const timeRoutes = require("./routes/timeRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const ptoRoutes = require("./routes/ptoRoutes");
+
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
 const app = express();
@@ -167,6 +169,25 @@ app.use("/api/auth", authRoutes);
 app.use("/api/time", timeRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/pto", ptoRoutes);
+
+app.use((err, req, res, next) => {
+  if (
+    err.message?.includes("not allowed by CORS") ||
+    err.message?.includes("is not allowed by CORS")
+  ) {
+    console.error(
+      `CORS error for ${req.method} ${req.originalUrl}:`,
+      err.message,
+    );
+
+    return res.status(403).json({
+      error: "Origin not allowed",
+    });
+  }
+
+  return next(err);
+});
 
 const PORT = process.env.PORT || 5000;
 
