@@ -453,6 +453,72 @@ const getMyWeeklySummary = async (req, res) => {
   }
 };
 
+const updateMyEntryNote = async (req, res) => {
+  try {
+    const employeeId = req.user.id;
+    const entryId = Number(req.params.id);
+
+    let { note } = req.body;
+
+    if (!Number.isInteger(entryId) || entryId <= 0) {
+      return res.status(400).json({
+        error: "Invalid time entry ID.",
+      });
+    }
+
+    if (typeof note !== "string") {
+      return res.status(400).json({
+        error: "Note must be text.",
+      });
+    }
+
+    note = note.trim();
+
+    if (note.length > 1000) {
+      return res.status(400).json({
+        error: "Shift note cannot exceed 1000 characters.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE time_entries
+        SET note = $1
+        WHERE id = $2
+          AND employee_id = $3
+        RETURNING
+          id,
+          clock_in,
+          clock_out,
+          total_minutes,
+          status,
+          note,
+          created_at
+      `,
+      [note || null, entryId, employeeId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Time entry not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message: note
+        ? "Shift note updated successfully."
+        : "Shift note cleared successfully.",
+      entry: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Update shift note error:", error);
+
+    return res.status(500).json({
+      error: "Unable to update shift note.",
+    });
+  }
+};
+
 function getCurrentMondayDate() {
   const now = new Date();
 
@@ -522,4 +588,5 @@ module.exports = {
   getStatus,
   getMyEntries,
   getMyWeeklySummary,
+  updateMyEntryNote,
 };

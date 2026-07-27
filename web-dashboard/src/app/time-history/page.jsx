@@ -40,6 +40,11 @@ export default function TimeHistoryPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState("");
+
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -112,6 +117,7 @@ export default function TimeHistoryPage() {
         formatDateTime(entry.clock_in),
         formatDateTime(entry.clock_out),
         formatMinutes(entry.total_minutes),
+        entry.note,
       ]
         .filter(Boolean)
         .join(" ")
@@ -190,6 +196,60 @@ export default function TimeHistoryPage() {
     setCurrentPage(1);
   };
 
+  const startEditingNote = (entry) => {
+    setEditingNoteId(entry.id);
+    setNoteDraft(entry.note || "");
+    setNoteError("");
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNoteId(null);
+    setNoteDraft("");
+    setNoteError("");
+  };
+
+  const saveShiftNote = async (entryId) => {
+    if (savingNote) {
+      return;
+    }
+
+    try {
+      setSavingNote(true);
+      setNoteError("");
+
+      const response = await api.patch(`/time/my-entries/${entryId}/note`, {
+        note: noteDraft,
+      });
+
+      const savedNote =
+        response?.data?.entry?.note ?? (noteDraft.trim() || null);
+
+      setEntries((currentEntries) =>
+        currentEntries.map((entry) =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                note: savedNote,
+              }
+            : entry,
+        ),
+      );
+
+      setEditingNoteId(null);
+      setNoteDraft("");
+    } catch (err) {
+      console.error("Save shift note error:", err);
+
+      setNoteError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Could not save your shift note.",
+      );
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const exportCsv = async () => {
     if (filteredEntries.length === 0) {
       setError("There are no matching time entries to export.");
@@ -216,6 +276,7 @@ export default function TimeHistoryPage() {
             ? ""
             : (safeNonNegativeNumber(entry.total_minutes) / 60).toFixed(2),
         status: normalizeStatus(entry),
+        note: entry.note || "",
       }));
 
       const csv = createCsv(rows);
@@ -520,6 +581,7 @@ export default function TimeHistoryPage() {
                       <th style={styles.th}>Clock Out</th>
                       <th style={styles.th}>Worked Time</th>
                       <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Shift Note</th>
                       <th style={styles.th}>Entry ID</th>
                     </tr>
                   </thead>
@@ -569,6 +631,20 @@ export default function TimeHistoryPage() {
                             >
                               {status}
                             </span>
+                          </td>
+
+                          <td style={styles.td}>
+                            <ShiftNoteEditor
+                              entry={entry}
+                              editingNoteId={editingNoteId}
+                              noteDraft={noteDraft}
+                              setNoteDraft={setNoteDraft}
+                              noteError={noteError}
+                              savingNote={savingNote}
+                              onEdit={startEditingNote}
+                              onCancel={cancelEditingNote}
+                              onSave={saveShiftNote}
+                            />
                           </td>
 
                           <td style={styles.td}>
@@ -629,6 +705,20 @@ export default function TimeHistoryPage() {
                         </span>
                       </div>
 
+                      <div style={styles.mobileNoteSection}>
+                        <ShiftNoteEditor
+                          entry={entry}
+                          editingNoteId={editingNoteId}
+                          noteDraft={noteDraft}
+                          setNoteDraft={setNoteDraft}
+                          noteError={noteError}
+                          savingNote={savingNote}
+                          onEdit={startEditingNote}
+                          onCancel={cancelEditingNote}
+                          onSave={saveShiftNote}
+                        />
+                      </div>
+
                       <div style={styles.mobileRow}>
                         <span>Entry ID</span>
                         <code style={styles.entryId}>
@@ -684,6 +774,93 @@ export default function TimeHistoryPage() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function ShiftNoteEditor({
+  entry,
+  editingNoteId,
+  noteDraft,
+  setNoteDraft,
+  noteError,
+  savingNote,
+  onEdit,
+  onCancel,
+  onSave,
+}) {
+  const isEditing = editingNoteId === entry.id;
+  const hasNote = Boolean(entry.note?.trim());
+
+  return (
+    <div style={styles.noteSection}>
+      <div style={styles.noteHeader}>
+        <strong style={styles.noteLabel}>Shift Note</strong>
+
+        {!isEditing && (
+          <button
+            type="button"
+            style={styles.noteEditButton}
+            onClick={() => onEdit(entry)}
+          >
+            {hasNote ? "Edit Note" : "Add Note"}
+          </button>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div style={styles.noteEditor}>
+          <textarea
+            value={noteDraft}
+            onChange={(event) => setNoteDraft(event.target.value)}
+            maxLength={1000}
+            placeholder="Add a note about this shift..."
+            style={styles.noteTextarea}
+            disabled={savingNote}
+            aria-label={`Shift note for entry ${entry.id}`}
+          />
+
+          <div style={styles.noteFooter}>
+            <span style={styles.characterCount}>{noteDraft.length} / 1000</span>
+
+            <div style={styles.noteActions}>
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={savingNote}
+                style={{
+                  ...styles.cancelButton,
+                  ...(savingNote ? styles.disabledButton : {}),
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSave(entry.id)}
+                disabled={savingNote}
+                style={{
+                  ...styles.saveButton,
+                  ...(savingNote ? styles.disabledButton : {}),
+                }}
+              >
+                {savingNote ? "Saving..." : "Save Note"}
+              </button>
+            </div>
+          </div>
+
+          {noteError && (
+            <p style={styles.noteError} role="alert">
+              {noteError}
+            </p>
+          )}
+        </div>
+      ) : (
+        <p style={styles.noteText}>
+          {hasNote ? entry.note : "No note added for this shift."}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1068,7 +1245,7 @@ const styles = {
 
   table: {
     width: "100%",
-    minWidth: "980px",
+    minWidth: "1220px",
     borderCollapse: "collapse",
   },
 
@@ -1199,5 +1376,110 @@ const styles = {
     alignItems: "center",
     padding: "8px 0",
     borderBottom: "1px solid #EEF2F7",
+  },
+
+  mobileNoteSection: {
+    padding: "14px 0",
+    borderBottom: "1px solid #EEF2F7",
+  },
+
+  noteSection: {
+    minWidth: "220px",
+  },
+
+  noteHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "8px",
+  },
+
+  noteLabel: {
+    color: "#172033",
+    fontSize: "13px",
+  },
+
+  noteText: {
+    margin: 0,
+    color: "#4B5563",
+    lineHeight: "1.5",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    fontSize: "13px",
+  },
+
+  noteEditButton: {
+    border: "1px solid #2563EB",
+    backgroundColor: "#FFFFFF",
+    color: "#2563EB",
+    borderRadius: "8px",
+    padding: "7px 10px",
+    cursor: "pointer",
+    fontWeight: "700",
+    whiteSpace: "nowrap",
+  },
+
+  noteEditor: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+
+  noteTextarea: {
+    width: "100%",
+    minHeight: "100px",
+    resize: "vertical",
+    padding: "12px",
+    border: "1px solid #D1D5DB",
+    borderRadius: "10px",
+    fontFamily: "inherit",
+    fontSize: "14px",
+    boxSizing: "border-box",
+  },
+
+  noteFooter: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+
+  characterCount: {
+    color: "#6B7280",
+    fontSize: "12px",
+  },
+
+  noteActions: {
+    display: "flex",
+    gap: "8px",
+  },
+
+  cancelButton: {
+    padding: "8px 12px",
+    border: "1px solid #D1D5DB",
+    borderRadius: "8px",
+    backgroundColor: "#FFFFFF",
+    color: "#374151",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
+
+  saveButton: {
+    padding: "8px 12px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563EB",
+    color: "#FFFFFF",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
+
+  noteError: {
+    margin: 0,
+    color: "#B91C1C",
+    fontSize: "13px",
+    fontWeight: "600",
   },
 };
