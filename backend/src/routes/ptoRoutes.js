@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const authMiddleware = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
   createPtoRequest,
@@ -10,12 +10,10 @@ const {
   getMyPtoRequestById,
 } = require("../controllers/ptoController");
 
-router.use(authMiddleware);
+router.use(protect);
 
 router.post("/", createPtoRequest);
-
 router.get("/mine", getMyPtoRequests);
-
 router.get("/:id", getMyPtoRequestById);
 
 module.exports = router;
