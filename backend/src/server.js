@@ -50,11 +50,30 @@ const errorLogStream = fs.createWriteStream(
   },
 );
 
+const normalizeOrigin = (origin) => {
+  if (!origin || typeof origin !== "string") {
+    return null;
+  }
+
+  return origin.trim().replace(/\/+$/, "");
+};
+
+const additionalOrigins = process.env.FRONTEND_URLS
+  ? process.env.FRONTEND_URLS.split(",").map(normalizeOrigin).filter(Boolean)
+  : [];
+
 const allowedOrigins = [
   "http://localhost:3000",
-  process.env.FRONTEND_URL,
-  process.env.STAGING_FRONTEND_URL,
+  normalizeOrigin(process.env.FRONTEND_URL),
+  normalizeOrigin(process.env.STAGING_FRONTEND_URL),
+  ...additionalOrigins,
 ].filter(Boolean);
+
+console.log("Allowed frontend origins:");
+
+allowedOrigins.forEach((origin) => {
+  console.log(` - ${origin}`);
+});
 
 const corsOptions = {
   origin(origin, callback) {
@@ -63,13 +82,17 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    const normalizedRequestOrigin = normalizeOrigin(origin);
+
+    if (allowedOrigins.includes(normalizedRequestOrigin)) {
       return callback(null, true);
     }
 
-    console.warn(`Blocked CORS request from: ${origin}`);
+    console.warn(`Blocked CORS request from: ${normalizedRequestOrigin}`);
 
-    return callback(new Error("Not allowed by CORS"));
+    return callback(
+      new Error(`Origin ${normalizedRequestOrigin} is not allowed by CORS`),
+    );
   },
 
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -77,9 +100,12 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 
   credentials: true,
+
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
+
 app.options(/.*/, cors(corsOptions));
 
 app.use(
@@ -89,6 +115,16 @@ app.use(
 );
 
 app.use(helmet());
+app.use(express.json());
+
+app.use(
+  helmet({
+    /*
+     * Helmet defaults are fine for the API.
+     * CORS is handled separately above.
+     */
+  }),
+);
 
 app.use(
   morgan(":date[iso] :remote-addr :method :url :status :response-time ms", {
@@ -98,9 +134,12 @@ app.use(
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
+
   max: 2000,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     error: "Too many requests. Please try again later.",
   },
@@ -108,9 +147,12 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
+
   max: 50,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     error: "Too many login attempts. Please try again later.",
   },
@@ -118,9 +160,12 @@ const authLimiter = rateLimit({
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
+
   max: 20,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     error: "Too many account creation attempts. Please try again later.",
   },
@@ -128,9 +173,12 @@ const registerLimiter = rateLimit({
 
 const clockLimiter = rateLimit({
   windowMs: 60 * 1000,
+
   max: 100,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     error: "Too many clock requests. Please wait and try again.",
   },
@@ -138,9 +186,12 @@ const clockLimiter = rateLimit({
 
 const reportLimiter = rateLimit({
   windowMs: 60 * 1000,
+
   max: 200,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     error: "Too many report requests. Please wait and try again.",
   },
@@ -148,9 +199,12 @@ const reportLimiter = rateLimit({
 
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
+
   max: 1000,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     error: "Too many admin requests. Please try again later.",
   },
@@ -158,8 +212,13 @@ const adminLimiter = rateLimit({
 
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
+
   delayAfter: 500,
-  delayMs: (hits) => Math.min((hits - 500) * 25, 1000),
+
+  delayMs: (hits) => {
+    return Math.min(Math.max(hits - 500, 0) * 25, 1000);
+  },
+
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -168,21 +227,31 @@ app.use("/api", speedLimiter);
 app.use("/api", apiLimiter);
 
 app.use("/api/auth/login", authLimiter);
+
 app.use("/api/auth/register", registerLimiter);
 app.use("/api/time/clock-in", clockLimiter);
 app.use("/api/time/clock-out", clockLimiter);
+
+app.use("/api/time", clockLimiter);
+
 app.use("/api/reports", reportLimiter);
+
 app.use("/api/admin", adminLimiter);
 
 app.get("/", (req, res) => {
-  res.send("ShiftStack Backend Running");
+  res.status(200).send("ShiftStack Backend Running");
 });
 
 app.use("/api/health", healthRoutes);
+
 app.use("/api/admin", adminRoutes);
+
 app.use("/api/auth", authRoutes);
+
 app.use("/api/time", timeRoutes);
+
 app.use("/api/reports", reportRoutes);
+
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/pto", ptoRoutes);
 app.use("/api/calendar", calendarRoutes);
@@ -227,6 +296,24 @@ app.use((err, req, res, next) => {
   });
 });
 
+app.use((err, req, res, next) => {
+  if (
+    err.message?.includes("not allowed by CORS") ||
+    err.message?.includes("is not allowed by CORS")
+  ) {
+    console.error(
+      `CORS error for ${req.method} ${req.originalUrl}:`,
+      err.message,
+    );
+
+    return res.status(403).json({
+      error: "Origin not allowed",
+    });
+  }
+
+  return next(err);
+});
+
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
@@ -245,6 +332,12 @@ const startServer = async () => {
     });
   } catch (err) {
     console.error("Startup failed:", err);
+
+    fs.appendFileSync(
+      path.join(logDirectory, "error.log"),
+      `[${new Date().toISOString()}] Startup failed: ${err.stack}\n\n`,
+    );
+
     process.exit(1);
   }
 };
@@ -255,16 +348,19 @@ process.on("uncaughtException", (err) => {
     `[${new Date().toISOString()}] ${err.stack}\n\n`,
   );
 
-  console.error(err);
+  console.error("Uncaught exception:", err);
 });
 
 process.on("unhandledRejection", (reason) => {
+  const message = reason instanceof Error ? reason.stack : String(reason);
+
   fs.appendFileSync(
     path.join(logDirectory, "error.log"),
     `[${new Date().toISOString()}] ${reason?.stack || reason}\n\n`,
+    `[${new Date().toISOString()}] ${message}\n\n`,
   );
 
-  console.error(reason);
+  console.error("Unhandled rejection:", reason);
 });
 
 startServer();
