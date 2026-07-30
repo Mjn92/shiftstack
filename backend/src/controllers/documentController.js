@@ -1,39 +1,46 @@
-const pool = require("../db/pool");
+const pool = require("../config/db");
 
 const getDocuments = async (req, res) => {
   try {
-    const role = req.user.role;
+    const role = req.user?.role;
 
-    let allowedAudiences = ["all"];
+    let allowedAudiences;
 
-    if (role === "employee") {
-      allowedAudiences = ["all", "employee"];
-    }
+    switch (role) {
+      case "employee":
+        allowedAudiences = ["all", "employee"];
+        break;
 
-    if (role === "manager") {
-      allowedAudiences = ["all", "employee", "manager"];
-    }
+      case "manager":
+        allowedAudiences = ["all", "employee", "manager"];
+        break;
 
-    if (role === "admin") {
-      allowedAudiences = ["all", "employee", "manager", "admin"];
+      case "admin":
+        allowedAudiences = ["all", "employee", "manager", "admin"];
+        break;
+
+      default:
+        return res.status(403).json({
+          error: "You do not have permission to access documents.",
+        });
     }
 
     const result = await pool.query(
       `
-      SELECT
-        id,
-        title,
-        description,
-        category,
-        file_url,
-        file_type,
-        audience,
-        created_at,
-        updated_at
-      FROM documents
-      WHERE active = TRUE
-        AND audience = ANY($1::text[])
-      ORDER BY created_at DESC
+        SELECT
+          id,
+          title,
+          description,
+          category,
+          file_url,
+          file_type,
+          audience,
+          created_at,
+          updated_at
+        FROM documents
+        WHERE active = TRUE
+          AND audience = ANY($1::text[])
+        ORDER BY created_at DESC
       `,
       [allowedAudiences],
     );

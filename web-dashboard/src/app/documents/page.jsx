@@ -1,14 +1,15 @@
 "use client";
 
+"use client";
+
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import AppShell from "../../components/AppShell";
-import SectionHeader from "../../components/SectionHeader";
+import AppShell from "../../components/app-shell/AppShell";
+import PageHeader from "../../components/app-shell/PageHeader";
 
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../api/api";
-
 export default function DocumentsPage() {
   const router = useRouter();
   const { employee, loading } = useContext(AuthContext);
@@ -94,7 +95,8 @@ export default function DocumentsPage() {
     <AppShell>
       <main style={styles.page}>
         <div style={styles.container}>
-          <SectionHeader
+          <PageHeader
+            eyebrow="Company Resources"
             title="Company Documents"
             subtitle="Access policies, benefits information, forms, and company resources."
             styles={styles}

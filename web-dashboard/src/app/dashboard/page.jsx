@@ -443,6 +443,15 @@ export default function DashboardPage() {
 
                 <DashboardCard
                   styles={styles}
+                  title="Company Documents"
+                  value="Resources"
+                  text="Access company policies, benefits information, forms, and other shared resources."
+                  buttonText="Open Documents"
+                  onClick={() => router.push("/documents")}
+                />
+
+                <DashboardCard
+                  styles={styles}
                   title="My Profile"
                   value={employee.email || "Account"}
                   text={getEmployeeName(employee)}

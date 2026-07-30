@@ -10,23 +10,24 @@ import {
   ClipboardList,
   Clock3,
   FileBarChart,
+  FileText,
   History,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Plane,
   ScrollText,
   Settings,
   ShieldCheck,
   UserRound,
   Users,
-  Megaphone,
 } from "lucide-react";
 
 import { AuthContext } from "../../context/AuthContext";
 import { canAccessAdmin, canAccessManagement } from "../../utils/roleAccess";
 import useUnreadNotifications from "../../hooks/useUnreadNotifications";
 
-const employeeLinks = [
+const workLinks = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -47,6 +48,9 @@ const employeeLinks = [
     label: "Weekly Summary",
     icon: CalendarDays,
   },
+];
+
+const timeOffLinks = [
   {
     href: "/pto",
     label: "Paid Time Off",
@@ -57,11 +61,22 @@ const employeeLinks = [
     label: "My Calendar",
     icon: CalendarRange,
   },
+];
+
+const companyLinks = [
   {
     href: "/announcements",
     label: "Announcements",
     icon: Megaphone,
   },
+  {
+    href: "/documents",
+    label: "Documents",
+    icon: FileText,
+  },
+];
+
+const accountLinks = [
   {
     href: "/notifications",
     label: "Notifications",
@@ -156,6 +171,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
           <p className="app-sidebar__user-role">
             <ShieldCheck size={14} aria-hidden="true" />
+
             {formatRole(employee?.role)}
           </p>
         </div>
@@ -163,8 +179,32 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
       <nav className="app-sidebar__navigation">
         <NavigationSection
-          title="Employee"
-          links={employeeLinks}
+          title="Work"
+          links={workLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
+
+        <NavigationSection
+          title="Time Off"
+          links={timeOffLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
+
+        <NavigationSection
+          title="Company"
+          links={companyLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
+
+        <NavigationSection
+          title="Account"
+          links={accountLinks}
           pathname={pathname}
           onNavigate={onNavigate}
           unreadCount={unreadCount}
@@ -276,6 +316,7 @@ function getInitials(employee) {
   }
 
   const firstInitial = employee.first_name?.charAt(0) || "";
+
   const lastInitial = employee.last_name?.charAt(0) || "";
 
   return `${firstInitial}${lastInitial}`.toUpperCase() || "SS";
