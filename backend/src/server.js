@@ -21,6 +21,7 @@ const ptoRoutes = require("./routes/ptoRoutes");
 const calendarRoutes = require("./routes/calendarRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
 const documentRoutes = require("./routes/documentRoutes");
+const managerRoutes = require("./routes/managerRoutes");
 
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
@@ -231,32 +232,25 @@ app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", registerLimiter);
 app.use("/api/time/clock-in", clockLimiter);
 app.use("/api/time/clock-out", clockLimiter);
-
 app.use("/api/time", clockLimiter);
-
 app.use("/api/reports", reportLimiter);
 
 app.use("/api/admin", adminLimiter);
-
 app.get("/", (req, res) => {
   res.status(200).send("ShiftStack Backend Running");
 });
 
 app.use("/api/health", healthRoutes);
-
 app.use("/api/admin", adminRoutes);
-
 app.use("/api/auth", authRoutes);
-
 app.use("/api/time", timeRoutes);
-
 app.use("/api/reports", reportRoutes);
-
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/pto", ptoRoutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/documents", documentRoutes);
+app.use("/api/manager", managerRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({

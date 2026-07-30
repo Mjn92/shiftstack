@@ -479,6 +479,16 @@ export default function DashboardPage() {
                 >
                   <DashboardCard
                     styles={styles}
+                    title="Manager Dashboard"
+                    value="Overview"
+                    text="Review workforce attendance, PTO requests, weekly hours, and recent team activity."
+                    buttonText="Open Manager Dashboard"
+                    onClick={() => router.push("/manager")}
+                    highlight="neutral"
+                  />
+
+                  <DashboardCard
+                    styles={styles}
                     title="Employees"
                     value="Team"
                     text="View employee records, roles, and account status."

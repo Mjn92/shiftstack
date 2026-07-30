@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
+
 import {
   Bell,
   CalendarDays,
@@ -24,7 +25,9 @@ import {
 } from "lucide-react";
 
 import { AuthContext } from "../../context/AuthContext";
+
 import { canAccessAdmin, canAccessManagement } from "../../utils/roleAccess";
+
 import useUnreadNotifications from "../../hooks/useUnreadNotifications";
 
 const workLinks = [
@@ -92,6 +95,11 @@ const accountLinks = [
 
 const managementLinks = [
   {
+    href: "/manager",
+    label: "Manager Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
     href: "/employees",
     label: "Employees",
     icon: Users,
@@ -123,6 +131,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
   const { employee, logout } = useContext(AuthContext);
 
   const showManagement = canAccessManagement(employee?.role);
+
   const showAdmin = canAccessAdmin(employee?.role);
 
   const { unreadCount } = useUnreadNotifications(Boolean(employee));
@@ -132,6 +141,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
       await logout();
     } finally {
       onNavigate?.();
+
       router.replace("/login");
     }
   };
@@ -145,6 +155,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
       }
       aria-label={mobile ? "Mobile navigation" : "Primary navigation"}
     >
+      {/* Brand */}
       <div className="app-sidebar__brand">
         <div className="app-sidebar__logo" aria-hidden="true">
           S
@@ -157,17 +168,14 @@ export default function Sidebar({ mobile = false, onNavigate }) {
         </div>
       </div>
 
+      {/* Current User */}
       <div className="app-sidebar__user">
         <div className="app-sidebar__avatar" aria-hidden="true">
           {getInitials(employee)}
         </div>
 
         <div className="app-sidebar__user-details">
-          <p className="app-sidebar__user-name">
-            {employee
-              ? `${employee.first_name} ${employee.last_name}`
-              : "ShiftStack User"}
-          </p>
+          <p className="app-sidebar__user-name">{getEmployeeName(employee)}</p>
 
           <p className="app-sidebar__user-role">
             <ShieldCheck size={14} aria-hidden="true" />
@@ -177,6 +185,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
         </div>
       </div>
 
+      {/* Navigation */}
       <nav className="app-sidebar__navigation">
         <NavigationSection
           title="Work"
@@ -202,14 +211,6 @@ export default function Sidebar({ mobile = false, onNavigate }) {
           unreadCount={unreadCount}
         />
 
-        <NavigationSection
-          title="Account"
-          links={accountLinks}
-          pathname={pathname}
-          onNavigate={onNavigate}
-          unreadCount={unreadCount}
-        />
-
         {showManagement && (
           <NavigationSection
             title="Management"
@@ -229,8 +230,17 @@ export default function Sidebar({ mobile = false, onNavigate }) {
             unreadCount={unreadCount}
           />
         )}
+
+        <NavigationSection
+          title="Account"
+          links={accountLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
       </nav>
 
+      {/* Footer */}
       <div className="app-sidebar__footer">
         <Link
           href="/profile"
@@ -270,10 +280,7 @@ function NavigationSection({
         {links.map((link) => {
           const Icon = link.icon;
 
-          const active =
-            pathname === link.href ||
-            (link.href !== "/dashboard" &&
-              pathname?.startsWith(`${link.href}/`));
+          const active = isActiveRoute(pathname, link.href);
 
           const showNotificationBadge =
             link.badge === "notifications" && unreadCount > 0;
@@ -310,6 +317,34 @@ function NavigationSection({
   );
 }
 
+function isActiveRoute(pathname, href) {
+  if (!pathname) {
+    return false;
+  }
+
+  if (pathname === href) {
+    return true;
+  }
+
+  if (href === "/dashboard") {
+    return false;
+  }
+
+  return pathname.startsWith(`${href}/`);
+}
+
+function getEmployeeName(employee) {
+  if (!employee) {
+    return "ShiftStack User";
+  }
+
+  const name = `${employee.first_name || ""} ${
+    employee.last_name || ""
+  }`.trim();
+
+  return name || employee.email || "ShiftStack User";
+}
+
 function getInitials(employee) {
   if (!employee) {
     return "SS";
@@ -327,5 +362,5 @@ function formatRole(role) {
     return "Employee";
   }
 
-  return role.charAt(0).toUpperCase() + role.slice(1);
+  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
