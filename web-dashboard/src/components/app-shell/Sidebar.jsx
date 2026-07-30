@@ -6,12 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
+  CalendarRange,
   ClipboardList,
   Clock3,
   FileBarChart,
+  FileText,
   History,
   LayoutDashboard,
   LogOut,
+  Megaphone,
+  Plane,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -23,7 +27,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { canAccessAdmin, canAccessManagement } from "../../utils/roleAccess";
 import useUnreadNotifications from "../../hooks/useUnreadNotifications";
 
-const employeeLinks = [
+const workLinks = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -44,6 +48,35 @@ const employeeLinks = [
     label: "Weekly Summary",
     icon: CalendarDays,
   },
+];
+
+const timeOffLinks = [
+  {
+    href: "/pto",
+    label: "Paid Time Off",
+    icon: Plane,
+  },
+  {
+    href: "/calendar",
+    label: "My Calendar",
+    icon: CalendarRange,
+  },
+];
+
+const companyLinks = [
+  {
+    href: "/announcements",
+    label: "Announcements",
+    icon: Megaphone,
+  },
+  {
+    href: "/documents",
+    label: "Documents",
+    icon: FileText,
+  },
+];
+
+const accountLinks = [
   {
     href: "/notifications",
     label: "Notifications",
@@ -90,7 +123,6 @@ export default function Sidebar({ mobile = false, onNavigate }) {
   const { employee, logout } = useContext(AuthContext);
 
   const showManagement = canAccessManagement(employee?.role);
-
   const showAdmin = canAccessAdmin(employee?.role);
 
   const { unreadCount } = useUnreadNotifications(Boolean(employee));
@@ -147,8 +179,32 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
       <nav className="app-sidebar__navigation">
         <NavigationSection
-          title="Employee"
-          links={employeeLinks}
+          title="Work"
+          links={workLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
+
+        <NavigationSection
+          title="Time Off"
+          links={timeOffLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
+
+        <NavigationSection
+          title="Company"
+          links={companyLinks}
+          pathname={pathname}
+          onNavigate={onNavigate}
+          unreadCount={unreadCount}
+        />
+
+        <NavigationSection
+          title="Account"
+          links={accountLinks}
           pathname={pathname}
           onNavigate={onNavigate}
           unreadCount={unreadCount}

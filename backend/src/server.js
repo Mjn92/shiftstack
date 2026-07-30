@@ -17,6 +17,10 @@ const authRoutes = require("./routes/authRoutes");
 const timeRoutes = require("./routes/timeRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const ptoRoutes = require("./routes/ptoRoutes");
+const calendarRoutes = require("./routes/calendarRoutes");
+const announcementRoutes = require("./routes/announcementRoutes");
+const documentRoutes = require("./routes/documentRoutes");
 
 const { connectRabbitMQ } = require("./config/rabbitmq");
 
@@ -73,6 +77,7 @@ allowedOrigins.forEach((origin) => {
 
 const corsOptions = {
   origin(origin, callback) {
+    // Allow Postman, curl, and server-to-server requests.
     if (!origin) {
       return callback(null, true);
     }
@@ -103,6 +108,13 @@ app.use(cors(corsOptions));
 
 app.options(/.*/, cors(corsOptions));
 
+app.use(
+  express.json({
+    limit: "1mb",
+  }),
+);
+
+app.use(helmet());
 app.use(express.json());
 
 app.use(
@@ -217,6 +229,8 @@ app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
 
 app.use("/api/auth/register", registerLimiter);
+app.use("/api/time/clock-in", clockLimiter);
+app.use("/api/time/clock-out", clockLimiter);
 
 app.use("/api/time", clockLimiter);
 
@@ -239,6 +253,48 @@ app.use("/api/time", timeRoutes);
 app.use("/api/reports", reportRoutes);
 
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/pto", ptoRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/documents", documentRoutes);
+
+app.use((req, res) => {
+  return res.status(404).json({
+    error: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+app.use((err, req, res, next) => {
+  if (
+    err.message?.includes("not allowed by CORS") ||
+    err.message?.includes("is not allowed by CORS")
+  ) {
+    console.error(
+      `CORS error for ${req.method} ${req.originalUrl}:`,
+      err.message,
+    );
+
+    return res.status(403).json({
+      error: "Origin not allowed",
+    });
+  }
+
+  return next(err);
+});
+
+app.use((err, req, res, next) => {
+  console.error(
+    `Unhandled request error for ${req.method} ${req.originalUrl}:`,
+    err,
+  );
+
+  return res.status(err.status || err.statusCode || 500).json({
+    error:
+      process.env.NODE_ENV === "production"
+        ? "An unexpected server error occurred."
+        : err.message || "An unexpected server error occurred.",
+  });
+});
 
 app.use((err, req, res, next) => {
   if (
@@ -300,6 +356,7 @@ process.on("unhandledRejection", (reason) => {
 
   fs.appendFileSync(
     path.join(logDirectory, "error.log"),
+    `[${new Date().toISOString()}] ${reason?.stack || reason}\n\n`,
     `[${new Date().toISOString()}] ${message}\n\n`,
   );
 

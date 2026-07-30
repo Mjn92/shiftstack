@@ -1,5 +1,4 @@
 const express = require("express");
-const router = express.Router();
 
 const {
   clockIn,
@@ -7,10 +6,13 @@ const {
   getStatus,
   getMyEntries,
   getMyWeeklySummary,
+  updateMyEntryNote,
 } = require("../controllers/timeController");
 
 const { protect } = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+
+const router = express.Router();
 
 router.post(
   "/clock-in",
@@ -45,6 +47,13 @@ router.get(
   protect,
   authorize("employee", "manager", "admin"),
   getMyWeeklySummary,
+);
+
+router.patch(
+  "/my-entries/:id/note",
+  protect,
+  authorize("employee", "manager", "admin"),
+  updateMyEntryNote,
 );
 
 module.exports = router;
