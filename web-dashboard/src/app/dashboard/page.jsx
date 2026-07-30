@@ -2,35 +2,35 @@
 
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Bell,
-  CalendarClock,
-  Clock3,
-  History,
-  RefreshCw,
-  Timer,
-  UserRound,
-} from "lucide-react";
+import { CalendarClock, Clock3, History, RefreshCw, Timer } from "lucide-react";
 
 import AppShell from "../../components/app-shell/AppShell";
 import PageHeader from "../../components/app-shell/PageHeader";
 import DashboardErrorBoundary from "../../components/DashboardErrorBoundary";
 import DashboardCard from "../../components/DashboardCard";
 import DashboardSection from "../../components/DashboardSection";
+
 import DashboardStatCard from "../../components/dashboard/DashboardStatCard";
 import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import RecentActivity from "../../components/dashboard/RecentActivity";
 import WeeklyProgress from "../../components/dashboard/WeeklyProgress";
+import AnnouncementPreview from "../../components/dashboard/AnnouncementPreview";
+
 import LoadingState from "../../components/ui/LoadingState";
 import ErrorState from "../../components/ui/ErrorState";
+
 import { AuthContext } from "../../context/AuthContext";
+
 import api from "../../api/api";
+
 import { formatDateTime, formatMinutes } from "../../utils/dateTime";
+
 import {
   calculateTotalMinutes,
   getCompletedEntries,
   getTodayEntries,
 } from "../../utils/timeEntries";
+
 import {
   formatDashboardDate,
   formatHours,
@@ -38,17 +38,26 @@ import {
   isAdmin,
   isManager,
 } from "../../utils/dashboardHelpers";
+
 import "./dashboard.css";
 
 export default function DashboardPage() {
   const router = useRouter();
+
   const { employee, loading: authLoading } = useContext(AuthContext);
 
   const [clockStatus, setClockStatus] = useState(null);
+
   const [entries, setEntries] = useState([]);
+
   const [weeklySummary, setWeeklySummary] = useState(null);
+
+  const [announcements, setAnnouncements] = useState([]);
+
   const [error, setError] = useState("");
+
   const [pageLoading, setPageLoading] = useState(true);
+
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const loadDashboardData = useCallback(async () => {
@@ -56,32 +65,86 @@ export default function DashboardPage() {
       setPageLoading(true);
       setError("");
 
-      const [statusResponse, entriesResponse, weeklyResponse] =
-        await Promise.all([
+      const [statusResult, entriesResult, weeklyResult, announcementsResult] =
+        await Promise.allSettled([
           api.get("/time/status"),
+
           api.get("/time/my-entries"),
+
           api.get("/time/my-weekly-summary"),
+
+          api.get("/announcements"),
         ]);
 
-      setClockStatus(
-        statusResponse?.data &&
-          typeof statusResponse.data === "object" &&
-          !Array.isArray(statusResponse.data)
-          ? statusResponse.data
-          : null,
-      );
+      if (statusResult.status === "fulfilled") {
+        const statusData = statusResult.value?.data;
 
-      setEntries(
-        Array.isArray(entriesResponse?.data) ? entriesResponse.data : [],
-      );
+        setClockStatus(
+          statusData &&
+            typeof statusData === "object" &&
+            !Array.isArray(statusData)
+            ? statusData
+            : null,
+        );
+      } else {
+        console.error(
+          "Dashboard clock status load error:",
+          statusResult.reason,
+        );
+      }
 
-      setWeeklySummary(
-        weeklyResponse?.data &&
-          typeof weeklyResponse.data === "object" &&
-          !Array.isArray(weeklyResponse.data)
-          ? weeklyResponse.data
-          : null,
-      );
+      if (entriesResult.status === "fulfilled") {
+        const entriesData = entriesResult.value?.data;
+
+        setEntries(Array.isArray(entriesData) ? entriesData : []);
+      } else {
+        console.error("Dashboard entries load error:", entriesResult.reason);
+      }
+
+      if (weeklyResult.status === "fulfilled") {
+        const weeklyData = weeklyResult.value?.data;
+
+        setWeeklySummary(
+          weeklyData &&
+            typeof weeklyData === "object" &&
+            !Array.isArray(weeklyData)
+            ? weeklyData
+            : null,
+        );
+      } else {
+        console.error(
+          "Dashboard weekly summary load error:",
+          weeklyResult.reason,
+        );
+      }
+
+      if (announcementsResult.status === "fulfilled") {
+        const announcementData = announcementsResult.value?.data;
+
+        setAnnouncements(
+          Array.isArray(announcementData?.announcements)
+            ? announcementData.announcements
+            : [],
+        );
+      } else {
+        console.error(
+          "Dashboard announcements load error:",
+          announcementsResult.reason,
+        );
+
+        setAnnouncements([]);
+      }
+
+      const coreFailure =
+        statusResult.status === "rejected" ||
+        entriesResult.status === "rejected" ||
+        weeklyResult.status === "rejected";
+
+      if (coreFailure) {
+        setError(
+          "Some dashboard information could not be loaded. Refresh to try again.",
+        );
+      }
 
       setCurrentTime(Date.now());
     } catch (err) {
@@ -127,7 +190,6 @@ export default function DashboardPage() {
     const todayDate = new Date();
     const todaysEntries = getTodayEntries(entries, todayDate);
     const completedTodayEntries = getCompletedEntries(todaysEntries);
-
     const todaysMinutes = calculateTotalMinutes(completedTodayEntries);
     const totalWeeklyHours = Number(weeklySummary?.total_hours) || 0;
     const totalWeeklyShifts = Number(weeklySummary?.total_shifts) || 0;
@@ -255,7 +317,9 @@ export default function DashboardPage() {
                       : "0.00 hrs"
                   }
                   description="Completed shift time recorded today"
-                  badge={`${getTodayEntries(entries, new Date()).length} entries`}
+                  badge={`${
+                    getTodayEntries(entries, new Date()).length
+                  } entries`}
                   onClick={() => router.push("/time-history")}
                 />
 
@@ -275,11 +339,12 @@ export default function DashboardPage() {
                   label="Completed Shifts"
                   value={dashboardData.completedShiftCount}
                   description="Total completed shifts in your history"
-                  badge={`${dashboardData.overtimeHours.toFixed(2)} overtime hrs`}
+                  badge={`${dashboardData.overtimeHours.toFixed(
+                    2,
+                  )} overtime hrs`}
                   onClick={() => router.push("/time-history")}
                 />
               </section>
-
               <section style={styles.insightGrid}>
                 <WeeklyProgress
                   totalHours={dashboardData.totalWeeklyHours}
@@ -296,6 +361,13 @@ export default function DashboardPage() {
                 />
               </section>
 
+              <section
+                style={styles.announcementSection}
+                aria-label="Company announcements"
+              >
+                <AnnouncementPreview announcements={announcements} />
+              </section>
+
               <DashboardSection
                 title="Quick Actions"
                 headingId="quick-actions-heading"
@@ -309,7 +381,9 @@ export default function DashboardPage() {
                   value={isClockedIn ? currentShiftDuration : "Ready"}
                   text={
                     currentEntry?.clock_in
-                      ? `Shift started ${formatDateTime(currentEntry.clock_in)}.`
+                      ? `Shift started ${formatDateTime(
+                          currentEntry.clock_in,
+                        )}.`
                       : "Clock in when you are ready to begin your next shift."
                   }
                   buttonText={isClockedIn ? "Clock Out" : "Clock In"}
@@ -334,6 +408,46 @@ export default function DashboardPage() {
                   }
                   buttonText="View History"
                   onClick={() => router.push("/time-history")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="Paid Time Off"
+                  value="PTO"
+                  text="Request time off and review your PTO requests."
+                  buttonText="Open PTO"
+                  onClick={() => router.push("/pto")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="My Calendar"
+                  value="Schedule"
+                  text="View your worked shifts and upcoming time off."
+                  buttonText="Open Calendar"
+                  onClick={() => router.push("/calendar")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="Company Announcements"
+                  value={
+                    announcements.length > 0
+                      ? `${announcements.length} available`
+                      : "Company News"
+                  }
+                  text="Review company news, policy updates, events, and important notices."
+                  buttonText="View Announcements"
+                  onClick={() => router.push("/announcements")}
+                />
+
+                <DashboardCard
+                  styles={styles}
+                  title="Company Documents"
+                  value="Resources"
+                  text="Access company policies, benefits information, forms, and other shared resources."
+                  buttonText="Open Documents"
+                  onClick={() => router.push("/documents")}
                 />
 
                 <DashboardCard
@@ -518,6 +632,12 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
     gap: "20px",
+    marginBottom: "24px",
+  },
+
+  announcementSection: {
+    width: "100%",
+
     marginBottom: "32px",
   },
 
