@@ -5,6 +5,7 @@ import { useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import {
+  Activity,
   Bell,
   CalendarDays,
   CalendarRange,
@@ -12,6 +13,7 @@ import {
   Clock3,
   FileBarChart,
   FileText,
+  Gauge,
   History,
   LayoutDashboard,
   LogOut,
@@ -28,13 +30,12 @@ import { AuthContext } from "../../context/AuthContext";
 
 import { canAccessAdmin, canAccessManagement } from "../../utils/roleAccess";
 
-import useUnreadNotifications from "../../hooks/useUnreadNotifications";
-
 const workLinks = [
   {
     href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
+    exact: true,
   },
   {
     href: "/clock",
@@ -97,7 +98,13 @@ const managementLinks = [
   {
     href: "/manager",
     label: "Manager Dashboard",
-    icon: LayoutDashboard,
+    icon: Gauge,
+    exact: true,
+  },
+  {
+    href: "/manager/attendance",
+    label: "Live Attendance",
+    icon: Activity,
   },
   {
     href: "/employees",
@@ -124,7 +131,11 @@ const adminLinks = [
   },
 ];
 
-export default function Sidebar({ mobile = false, onNavigate }) {
+export default function Sidebar({
+  mobile = false,
+  onNavigate,
+  unreadCount = 0,
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -134,11 +145,11 @@ export default function Sidebar({ mobile = false, onNavigate }) {
 
   const showAdmin = canAccessAdmin(employee?.role);
 
-  const { unreadCount } = useUnreadNotifications(Boolean(employee));
-
   const handleLogout = async () => {
     try {
       await logout();
+    } catch (err) {
+      console.error("Logout error:", err);
     } finally {
       onNavigate?.();
 
@@ -156,6 +167,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
       aria-label={mobile ? "Mobile navigation" : "Primary navigation"}
     >
       {/* Brand */}
+
       <div className="app-sidebar__brand">
         <div className="app-sidebar__logo" aria-hidden="true">
           S
@@ -169,6 +181,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
       </div>
 
       {/* Current User */}
+
       <div className="app-sidebar__user">
         <div className="app-sidebar__avatar" aria-hidden="true">
           {getInitials(employee)}
@@ -186,6 +199,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
       </div>
 
       {/* Navigation */}
+
       <nav className="app-sidebar__navigation">
         <NavigationSection
           title="Work"
@@ -241,6 +255,7 @@ export default function Sidebar({ mobile = false, onNavigate }) {
       </nav>
 
       {/* Footer */}
+
       <div className="app-sidebar__footer">
         <Link
           href="/profile"
@@ -248,7 +263,8 @@ export default function Sidebar({ mobile = false, onNavigate }) {
           onClick={onNavigate}
         >
           <Settings size={18} aria-hidden="true" />
-          Account Settings
+
+          <span>Account Settings</span>
         </Link>
 
         <button
@@ -258,7 +274,8 @@ export default function Sidebar({ mobile = false, onNavigate }) {
           aria-label="Log out of ShiftStack"
         >
           <LogOut size={18} aria-hidden="true" />
-          Logout
+
+          <span>Logout</span>
         </button>
       </div>
     </aside>
@@ -280,7 +297,7 @@ function NavigationSection({
         {links.map((link) => {
           const Icon = link.icon;
 
-          const active = isActiveRoute(pathname, link.href);
+          const active = isActiveRoute(pathname, link);
 
           const showNotificationBadge =
             link.badge === "notifications" && unreadCount > 0;
@@ -290,9 +307,10 @@ function NavigationSection({
               key={link.href}
               href={link.href}
               onClick={onNavigate}
-              className={`app-sidebar__link${
-                active ? " app-sidebar__link--active" : ""
-              }`}
+              className={
+                `app-sidebar__link` +
+                `${active ? " app-sidebar__link--active" : ""}`
+              }
               aria-current={active ? "page" : undefined}
             >
               <Icon size={19} aria-hidden="true" />
@@ -302,9 +320,10 @@ function NavigationSection({
               {showNotificationBadge && (
                 <span
                   className="app-sidebar__notification-badge"
-                  aria-label={`${unreadCount} unread notification${
-                    unreadCount === 1 ? "" : "s"
-                  }`}
+                  aria-label={
+                    `${unreadCount} unread ` +
+                    `notification${unreadCount === 1 ? "" : "s"}`
+                  }
                 >
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
@@ -317,20 +336,20 @@ function NavigationSection({
   );
 }
 
-function isActiveRoute(pathname, href) {
-  if (!pathname) {
+function isActiveRoute(pathname, link) {
+  if (!pathname || !link?.href) {
     return false;
   }
 
-  if (pathname === href) {
+  if (pathname === link.href) {
     return true;
   }
 
-  if (href === "/dashboard") {
+  if (link.exact) {
     return false;
   }
 
-  return pathname.startsWith(`${href}/`);
+  return pathname.startsWith(`${link.href}/`);
 }
 
 function getEmployeeName(employee) {
@@ -338,9 +357,10 @@ function getEmployeeName(employee) {
     return "ShiftStack User";
   }
 
-  const name = `${employee.first_name || ""} ${
-    employee.last_name || ""
-  }`.trim();
+  const name = [employee.first_name, employee.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
   return name || employee.email || "ShiftStack User";
 }
@@ -350,17 +370,28 @@ function getInitials(employee) {
     return "SS";
   }
 
-  const firstInitial = employee.first_name?.charAt(0) || "";
+  const firstInitial = employee.first_name?.trim()?.charAt(0) || "";
 
-  const lastInitial = employee.last_name?.charAt(0) || "";
+  const lastInitial = employee.last_name?.trim()?.charAt(0) || "";
 
-  return `${firstInitial}${lastInitial}`.toUpperCase() || "SS";
+  const initials = `${firstInitial}${lastInitial}`.toUpperCase();
+
+  return initials || "SS";
 }
 
 function formatRole(role) {
-  if (!role) {
+  if (!role || typeof role !== "string") {
     return "Employee";
   }
 
-  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+  const normalizedRole = role.trim();
+
+  if (!normalizedRole) {
+    return "Employee";
+  }
+
+  return (
+    normalizedRole.charAt(0).toUpperCase() +
+    normalizedRole.slice(1).toLowerCase()
+  );
 }

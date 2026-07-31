@@ -1,5 +1,4 @@
 const express = require("express");
-const router = express.Router();
 
 const {
   getEmployees,
@@ -13,18 +12,15 @@ const {
 } = require("../controllers/employeeController");
 
 const { protect, requireRole } = require("../middleware/authMiddleware");
-const authorize = require("../middleware/roleMiddleware");
 
-router.get("/employees", protect, authorize("admin", "manager"), getEmployees);
+const router = express.Router();
 
 router.get(
-  "/time-entries",
+  "/employees",
   protect,
-  authorize("admin", "manager"),
-  getTimeEntries,
+  requireRole("admin", "manager"),
+  getEmployees,
 );
-
-router.get("/audit-logs", protect, authorize("admin"), getAuditLogs);
 
 router.get(
   "/employees/:id",
@@ -60,5 +56,14 @@ router.patch(
   requireRole("admin", "manager"),
   deactivateEmployee,
 );
+
+router.get(
+  "/time-entries",
+  protect,
+  requireRole("admin", "manager"),
+  getTimeEntries,
+);
+
+router.get("/audit-logs", protect, requireRole("admin"), getAuditLogs);
 
 module.exports = router;

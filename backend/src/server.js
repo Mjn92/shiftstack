@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 require("./config/db");
 require("./config/validateEnv");
 
@@ -44,12 +45,7 @@ const accessLogStream = fs.createWriteStream(
   },
 );
 
-const errorLogStream = fs.createWriteStream(
-  path.join(logDirectory, "error.log"),
-  {
-    flags: "a",
-  },
-);
+const errorLogPath = path.join(logDirectory, "error.log");
 
 const normalizeOrigin = (origin) => {
   if (!origin || typeof origin !== "string") {
@@ -78,22 +74,28 @@ allowedOrigins.forEach((origin) => {
 
 const corsOptions = {
   origin(origin, callback) {
-    // Allow Postman, curl, and server-to-server requests.
     if (!origin) {
       return callback(null, true);
     }
 
     const normalizedRequestOrigin = normalizeOrigin(origin);
 
-    if (allowedOrigins.includes(normalizedRequestOrigin)) {
+    if (
+      normalizedRequestOrigin &&
+      allowedOrigins.includes(normalizedRequestOrigin)
+    ) {
       return callback(null, true);
     }
 
-    console.warn(`Blocked CORS request from: ${normalizedRequestOrigin}`);
-
-    return callback(
-      new Error(`Origin ${normalizedRequestOrigin} is not allowed by CORS`),
+    console.warn(
+      `Blocked CORS request from: ${normalizedRequestOrigin || origin}`,
     );
+
+    const error = new Error("Origin is not allowed by CORS");
+
+    error.code = "CORS_NOT_ALLOWED";
+
+    return callback(error);
   },
 
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -116,16 +118,6 @@ app.use(
 );
 
 app.use(helmet());
-app.use(express.json());
-
-app.use(
-  helmet({
-    /*
-     * Helmet defaults are fine for the API.
-     * CORS is handled separately above.
-     */
-  }),
-);
 
 app.use(
   morgan(":date[iso] :remote-addr :method :url :status :response-time ms", {
@@ -211,13 +203,28 @@ const adminLimiter = rateLimit({
   },
 });
 
+const managerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+
+  max: 1000,
+
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    error: "Too many manager requests. Please try again later.",
+  },
+});
+
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
 
   delayAfter: 500,
 
   delayMs: (hits) => {
-    return Math.min(Math.max(hits - 500, 0) * 25, 1000);
+    const excessHits = Math.max(hits - 500, 0);
+
+    return Math.min(excessHits * 25, 1000);
   },
 
   standardHeaders: true,
@@ -225,46 +232,59 @@ const speedLimiter = slowDown({
 });
 
 app.use("/api", speedLimiter);
+
 app.use("/api", apiLimiter);
 
 app.use("/api/auth/login", authLimiter);
 
 app.use("/api/auth/register", registerLimiter);
+
 app.use("/api/time/clock-in", clockLimiter);
+
 app.use("/api/time/clock-out", clockLimiter);
-app.use("/api/time", clockLimiter);
+
 app.use("/api/reports", reportLimiter);
 
 app.use("/api/admin", adminLimiter);
+
+app.use("/api/manager", managerLimiter);
+
 app.get("/", (req, res) => {
-  res.status(200).send("ShiftStack Backend Running");
+  return res.status(200).send("ShiftStack Backend Running");
 });
 
 app.use("/api/health", healthRoutes);
-app.use("/api/admin", adminRoutes);
+
 app.use("/api/auth", authRoutes);
+
 app.use("/api/time", timeRoutes);
+
 app.use("/api/reports", reportRoutes);
+
 app.use("/api/notifications", notificationRoutes);
+
 app.use("/api/pto", ptoRoutes);
+
 app.use("/api/calendar", calendarRoutes);
+
 app.use("/api/announcements", announcementRoutes);
+
 app.use("/api/documents", documentRoutes);
+
 app.use("/api/manager", managerRoutes);
+
+app.use("/api/admin", adminRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({
-    error: `Route not found: ${req.method} ${req.originalUrl}`,
+    error: `Route not found: ` + `${req.method} ` + `${req.originalUrl}`,
   });
 });
 
 app.use((err, req, res, next) => {
-  if (
-    err.message?.includes("not allowed by CORS") ||
-    err.message?.includes("is not allowed by CORS")
-  ) {
+  if (err.code === "CORS_NOT_ALLOWED") {
     console.error(
-      `CORS error for ${req.method} ${req.originalUrl}:`,
+      `CORS error for ` + `${req.method} ` + `${req.originalUrl}:`,
       err.message,
     );
 
@@ -278,34 +298,22 @@ app.use((err, req, res, next) => {
 
 app.use((err, req, res, next) => {
   console.error(
-    `Unhandled request error for ${req.method} ${req.originalUrl}:`,
+    `Unhandled request error for ` + `${req.method} ` + `${req.originalUrl}:`,
     err,
   );
 
-  return res.status(err.status || err.statusCode || 500).json({
-    error:
-      process.env.NODE_ENV === "production"
+  const statusCode = err.status || err.statusCode || 500;
+
+  const clientMessage =
+    process.env.NODE_ENV === "production"
+      ? statusCode >= 500
         ? "An unexpected server error occurred."
-        : err.message || "An unexpected server error occurred.",
+        : err.message
+      : err.message || "An unexpected server error occurred.";
+
+  return res.status(statusCode).json({
+    error: clientMessage,
   });
-});
-
-app.use((err, req, res, next) => {
-  if (
-    err.message?.includes("not allowed by CORS") ||
-    err.message?.includes("is not allowed by CORS")
-  ) {
-    console.error(
-      `CORS error for ${req.method} ${req.originalUrl}:`,
-      err.message,
-    );
-
-    return res.status(403).json({
-      error: "Origin not allowed",
-    });
-  }
-
-  return next(err);
 });
 
 const PORT = process.env.PORT || 5000;
@@ -321,15 +329,17 @@ const startServer = async () => {
 
       fs.appendFileSync(
         path.join(logDirectory, "access.log"),
-        `[${new Date().toISOString()}] ${startupMessage}\n`,
+        `[${new Date().toISOString()}] ` + `${startupMessage}\n`,
       );
     });
   } catch (err) {
     console.error("Startup failed:", err);
 
     fs.appendFileSync(
-      path.join(logDirectory, "error.log"),
-      `[${new Date().toISOString()}] Startup failed: ${err.stack}\n\n`,
+      errorLogPath,
+      `[${new Date().toISOString()}] ` +
+        `Startup failed: ` +
+        `${err.stack || err}\n\n`,
     );
 
     process.exit(1);
@@ -337,21 +347,23 @@ const startServer = async () => {
 };
 
 process.on("uncaughtException", (err) => {
+  const message = err instanceof Error ? err.stack || err.message : String(err);
+
   fs.appendFileSync(
-    path.join(logDirectory, "error.log"),
-    `[${new Date().toISOString()}] ${err.stack}\n\n`,
+    errorLogPath,
+    `[${new Date().toISOString()}] ` + `${message}\n\n`,
   );
 
   console.error("Uncaught exception:", err);
 });
 
 process.on("unhandledRejection", (reason) => {
-  const message = reason instanceof Error ? reason.stack : String(reason);
+  const message =
+    reason instanceof Error ? reason.stack || reason.message : String(reason);
 
   fs.appendFileSync(
-    path.join(logDirectory, "error.log"),
-    `[${new Date().toISOString()}] ${reason?.stack || reason}\n\n`,
-    `[${new Date().toISOString()}] ${message}\n\n`,
+    errorLogPath,
+    `[${new Date().toISOString()}] ` + `${message}\n\n`,
   );
 
   console.error("Unhandled rejection:", reason);

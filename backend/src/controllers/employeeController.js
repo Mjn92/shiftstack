@@ -1,20 +1,81 @@
 const bcrypt = require("bcrypt");
+
 const pool = require("../config/db");
 const { canManageUser } = require("../utils/permissions");
 const { createAuditLog } = require("../services/auditLogService");
 const { AUDIT_ACTIONS } = require("../utils/auditActions");
 
+const BCRYPT_ROUNDS = 12;
+
 const getEmployees = async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, first_name, last_name, email, role, active, phone, department FROM employees ORDER BY id ASC",
+      `
+        SELECT
+          id,
+          first_name,
+          last_name,
+          email,
+          role,
+          active,
+          phone,
+          department
+        FROM employees
+        ORDER BY id ASC
+      `,
     );
 
-    res.json(result.rows);
+    return res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
+    console.error("Get employees error:", err);
+
+    return res.status(500).json({
       error: "Server error",
+    });
+  }
+};
+
+const getEmployeeById = async (req, res) => {
+  try {
+    const employeeId = Number(req.params.id);
+
+    if (!Number.isInteger(employeeId) || employeeId < 1) {
+      return res.status(400).json({
+        error: "Invalid employee ID",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          id,
+          first_name,
+          last_name,
+          email,
+          role,
+          active,
+          phone,
+          department,
+          created_at,
+          updated_at
+        FROM employees
+        WHERE id = $1
+      `,
+      [employeeId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Employee not found",
+      });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Get employee error:", err);
+
+    return res.status(500).json({
+      error: "Could not load employee",
     });
   }
 };
@@ -22,51 +83,63 @@ const getEmployees = async (req, res) => {
 const getTimeEntries = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
-        time_entries.id,
-        time_entries.employee_id,
-        employees.first_name,
-        employees.last_name,
-        employees.email,
-        time_entries.clock_in,
-        time_entries.clock_out,
-        time_entries.total_minutes,
-        time_entries.status,
-        time_entries.note,
-        time_entries.created_at
-       FROM time_entries
-       JOIN employees ON employees.id = time_entries.employee_id
-       ORDER BY time_entries.clock_in DESC`,
+      `
+        SELECT
+          time_entries.id,
+          time_entries.employee_id,
+          employees.first_name,
+          employees.last_name,
+          employees.email,
+          time_entries.clock_in,
+          time_entries.clock_out,
+          time_entries.total_minutes,
+          time_entries.status,
+          time_entries.note,
+          time_entries.created_at
+        FROM time_entries
+        JOIN employees
+          ON employees.id = time_entries.employee_id
+        ORDER BY time_entries.clock_in DESC
+      `,
     );
 
-    res.json(result.rows);
+    return res.json(result.rows);
   } catch (err) {
     console.error("Get time entries error:", err);
-    res.status(500).json({ error: "Server error" });
+
+    return res.status(500).json({
+      error: "Server error",
+    });
   }
 };
 
 const getAuditLogs = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
-        audit_logs.id,
-        audit_logs.employee_id,
-        employees.first_name,
-        employees.last_name,
-        employees.email,
-        audit_logs.action,
-        audit_logs.details,
-        audit_logs.created_at
-       FROM audit_logs
-       LEFT JOIN employees ON employees.id = audit_logs.employee_id
-       ORDER BY audit_logs.created_at DESC`,
+      `
+        SELECT
+          audit_logs.id,
+          audit_logs.employee_id,
+          employees.first_name,
+          employees.last_name,
+          employees.email,
+          audit_logs.action,
+          audit_logs.details,
+          audit_logs.created_at
+        FROM audit_logs
+        LEFT JOIN employees
+          ON employees.id = audit_logs.employee_id
+        ORDER BY audit_logs.created_at DESC
+      `,
     );
 
-    res.json(result.rows);
+    return res.json(result.rows);
   } catch (err) {
     console.error("Get audit logs error:", err);
-    res.status(500).json({ error: "Server error" });
+
+    return res.status(500).json({
+      error: "Server error",
+    });
   }
 };
 
@@ -77,9 +150,45 @@ const createEmployee = async (req, res) => {
     const { first_name, last_name, email, password, role, phone, department } =
       req.body;
 
-    if (!first_name || !last_name || !email || !password) {
+    const firstName = normalizeRequiredString(first_name);
+    const lastName = normalizeRequiredString(last_name);
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizeOptionalString(phone);
+    const normalizedDepartment = normalizeOptionalString(department);
+
+    if (!firstName || !lastName || !normalizedEmail || !password) {
       return res.status(400).json({
         error: "First name, last name, email, and password are required",
+      });
+    }
+
+    if (firstName.length > 50) {
+      return res.status(400).json({
+        error: "First name must be 50 characters or fewer",
+      });
+    }
+
+    if (lastName.length > 50) {
+      return res.status(400).json({
+        error: "Last name must be 50 characters or fewer",
+      });
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({
+        error: "Enter a valid email address",
+      });
+    }
+
+    if (normalizedPhone && !isValidPhoneNumber(normalizedPhone)) {
+      return res.status(400).json({
+        error: "Enter a valid phone number",
+      });
+    }
+
+    if (typeof password !== "string" || password.length < 12) {
+      return res.status(400).json({
+        error: "Password must be at least 12 characters",
       });
     }
 
@@ -100,8 +209,12 @@ const createEmployee = async (req, res) => {
     }
 
     const existingEmployee = await pool.query(
-      "SELECT id FROM employees WHERE LOWER(email) = LOWER($1)",
-      [email],
+      `
+        SELECT id
+        FROM employees
+        WHERE LOWER(email) = LOWER($1)
+      `,
+      [normalizedEmail],
     );
 
     if (existingEmployee.rows.length > 0) {
@@ -110,22 +223,52 @@ const createEmployee = async (req, res) => {
       });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const result = await pool.query(
-      `INSERT INTO employees 
-        (first_name, last_name, email, password_hash, role, phone, department, active, updated_by)
-       VALUES 
-        ($1, $2, LOWER($3), $4, $5, $6, $7, TRUE, $8)
-       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      `
+        INSERT INTO employees (
+          first_name,
+          last_name,
+          email,
+          password_hash,
+          role,
+          phone,
+          department,
+          active,
+          updated_by
+        )
+        VALUES (
+          $1,
+          $2,
+          LOWER($3),
+          $4,
+          $5,
+          $6,
+          $7,
+          TRUE,
+          $8
+        )
+        RETURNING
+          id,
+          first_name,
+          last_name,
+          email,
+          role,
+          phone,
+          department,
+          active,
+          created_at,
+          updated_at
+      `,
       [
-        first_name,
-        last_name,
-        email,
+        firstName,
+        lastName,
+        normalizedEmail,
         passwordHash,
         newRole,
-        phone || null,
-        department || null,
+        normalizedPhone,
+        normalizedDepartment,
         currentUser.id,
       ],
     );
@@ -138,13 +281,14 @@ const createEmployee = async (req, res) => {
       details: `Created ${employee.role} account for ${employee.email}`,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Employee created successfully",
       employee,
     });
   } catch (err) {
     console.error("Create employee error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       error: "Server error",
     });
   }
@@ -153,13 +297,27 @@ const createEmployee = async (req, res) => {
 const updateEmployee = async (req, res) => {
   try {
     const currentUser = req.user;
-    const employeeId = req.params.id;
+    const employeeId = Number(req.params.id);
+
+    if (!Number.isInteger(employeeId) || employeeId < 1) {
+      return res.status(400).json({
+        error: "Invalid employee ID",
+      });
+    }
 
     const { first_name, last_name, email, role, phone, department, active } =
       req.body;
 
     const existingEmployee = await pool.query(
-      "SELECT id, email, role FROM employees WHERE id = $1",
+      `
+        SELECT
+          id,
+          email,
+          role,
+          active
+        FROM employees
+        WHERE id = $1
+      `,
       [employeeId],
     );
 
@@ -177,7 +335,10 @@ const updateEmployee = async (req, res) => {
       });
     }
 
-    const newRole = role || targetEmployee.role;
+    const newRole =
+      role === undefined || role === null || role === ""
+        ? targetEmployee.role
+        : role;
 
     const allowedRoles = ["employee", "manager", "admin"];
 
@@ -195,10 +356,71 @@ const updateEmployee = async (req, res) => {
       }
     }
 
-    if (email) {
+    const normalizedFirstName =
+      first_name !== undefined ? normalizeRequiredString(first_name) : null;
+
+    const normalizedLastName =
+      last_name !== undefined ? normalizeRequiredString(last_name) : null;
+
+    const normalizedEmail = email !== undefined ? normalizeEmail(email) : null;
+
+    const normalizedPhone =
+      phone !== undefined ? normalizeOptionalString(phone) : null;
+
+    const normalizedDepartment =
+      department !== undefined ? normalizeOptionalString(department) : null;
+
+    if (first_name !== undefined && !normalizedFirstName) {
+      return res.status(400).json({
+        error: "First name cannot be empty",
+      });
+    }
+
+    if (last_name !== undefined && !normalizedLastName) {
+      return res.status(400).json({
+        error: "Last name cannot be empty",
+      });
+    }
+
+    if (normalizedFirstName && normalizedFirstName.length > 50) {
+      return res.status(400).json({
+        error: "First name must be 50 characters or fewer",
+      });
+    }
+
+    if (normalizedLastName && normalizedLastName.length > 50) {
+      return res.status(400).json({
+        error: "Last name must be 50 characters or fewer",
+      });
+    }
+
+    if (email !== undefined && !normalizedEmail) {
+      return res.status(400).json({
+        error: "Email cannot be empty",
+      });
+    }
+
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      return res.status(400).json({
+        error: "Enter a valid email address",
+      });
+    }
+
+    if (normalizedPhone && !isValidPhoneNumber(normalizedPhone)) {
+      return res.status(400).json({
+        error: "Enter a valid phone number",
+      });
+    }
+
+    if (normalizedEmail) {
       const duplicateEmail = await pool.query(
-        "SELECT id FROM employees WHERE LOWER(email) = LOWER($1) AND id != $2",
-        [email, employeeId],
+        `
+          SELECT id
+          FROM employees
+          WHERE LOWER(email) = LOWER($1)
+            AND id != $2
+        `,
+        [normalizedEmail, employeeId],
       );
 
       if (duplicateEmail.rows.length > 0) {
@@ -209,26 +431,38 @@ const updateEmployee = async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE employees
-       SET
-        first_name = COALESCE($1, first_name),
-        last_name = COALESCE($2, last_name),
-        email = COALESCE(LOWER($3), email),
-        role = COALESCE($4, role),
-        phone = COALESCE($5, phone),
-        department = COALESCE($6, department),
-        active = COALESCE($7, active),
-        updated_at = CURRENT_TIMESTAMP,
-        updated_by = $8
-       WHERE id = $9
-       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      `
+        UPDATE employees
+        SET
+          first_name = COALESCE($1, first_name),
+          last_name = COALESCE($2, last_name),
+          email = COALESCE(LOWER($3), email),
+          role = $4,
+          phone = COALESCE($5, phone),
+          department = COALESCE($6, department),
+          active = COALESCE($7, active),
+          updated_at = CURRENT_TIMESTAMP,
+          updated_by = $8
+        WHERE id = $9
+        RETURNING
+          id,
+          first_name,
+          last_name,
+          email,
+          role,
+          phone,
+          department,
+          active,
+          created_at,
+          updated_at
+      `,
       [
-        first_name || null,
-        last_name || null,
-        email || null,
+        normalizedFirstName,
+        normalizedLastName,
+        normalizedEmail,
         newRole,
-        phone || null,
-        department || null,
+        normalizedPhone,
+        normalizedDepartment,
         typeof active === "boolean" ? active : null,
         currentUser.id,
         employeeId,
@@ -247,17 +481,20 @@ const updateEmployee = async (req, res) => {
       await createAuditLog({
         employee_id: currentUser.id,
         action: AUDIT_ACTIONS.CHANGE_EMPLOYEE_ROLE,
-        details: `Changed role for ${updatedEmployee.email} from ${targetEmployee.role} to ${newRole}`,
+        details:
+          `Changed role for ${updatedEmployee.email} ` +
+          `from ${targetEmployee.role} to ${newRole}`,
       });
     }
 
-    res.json({
+    return res.json({
       message: "Employee updated successfully",
       employee: updatedEmployee,
     });
   } catch (err) {
     console.error("Update employee error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       error: "Server error",
     });
   }
@@ -266,10 +503,24 @@ const updateEmployee = async (req, res) => {
 const activateEmployee = async (req, res) => {
   try {
     const currentUser = req.user;
-    const employeeId = req.params.id;
+    const employeeId = Number(req.params.id);
+
+    if (!Number.isInteger(employeeId) || employeeId < 1) {
+      return res.status(400).json({
+        error: "Invalid employee ID",
+      });
+    }
 
     const existingEmployee = await pool.query(
-      "SELECT id, email, role, active FROM employees WHERE id = $1",
+      `
+        SELECT
+          id,
+          email,
+          role,
+          active
+        FROM employees
+        WHERE id = $1
+      `,
       [employeeId],
     );
 
@@ -294,12 +545,25 @@ const activateEmployee = async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE employees
-       SET active = TRUE,
-           updated_at = CURRENT_TIMESTAMP,
-           updated_by = $1
-       WHERE id = $2
-       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      `
+        UPDATE employees
+        SET
+          active = TRUE,
+          updated_at = CURRENT_TIMESTAMP,
+          updated_by = $1
+        WHERE id = $2
+        RETURNING
+          id,
+          first_name,
+          last_name,
+          email,
+          role,
+          phone,
+          department,
+          active,
+          created_at,
+          updated_at
+      `,
       [currentUser.id, employeeId],
     );
 
@@ -311,13 +575,14 @@ const activateEmployee = async (req, res) => {
       details: `Activated ${employee.role} account for ${employee.email}`,
     });
 
-    res.json({
+    return res.json({
       message: "Employee activated successfully",
       employee,
     });
   } catch (err) {
     console.error("Activate employee error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       error: "Server error",
     });
   }
@@ -326,10 +591,24 @@ const activateEmployee = async (req, res) => {
 const deactivateEmployee = async (req, res) => {
   try {
     const currentUser = req.user;
-    const employeeId = req.params.id;
+    const employeeId = Number(req.params.id);
+
+    if (!Number.isInteger(employeeId) || employeeId < 1) {
+      return res.status(400).json({
+        error: "Invalid employee ID",
+      });
+    }
 
     const existingEmployee = await pool.query(
-      "SELECT id, email, role, active FROM employees WHERE id = $1",
+      `
+        SELECT
+          id,
+          email,
+          role,
+          active
+        FROM employees
+        WHERE id = $1
+      `,
       [employeeId],
     );
 
@@ -349,7 +628,7 @@ const deactivateEmployee = async (req, res) => {
       });
     }
 
-    if (currentUser.id === Number(employeeId)) {
+    if (currentUser.id === employeeId) {
       return res.status(400).json({
         error: "You cannot deactivate your own account",
       });
@@ -362,12 +641,25 @@ const deactivateEmployee = async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE employees
-       SET active = FALSE,
-           updated_at = CURRENT_TIMESTAMP,
-           updated_by = $1
-       WHERE id = $2
-       RETURNING id, first_name, last_name, email, role, phone, department, active, created_at, updated_at`,
+      `
+        UPDATE employees
+        SET
+          active = FALSE,
+          updated_at = CURRENT_TIMESTAMP,
+          updated_by = $1
+        WHERE id = $2
+        RETURNING
+          id,
+          first_name,
+          last_name,
+          email,
+          role,
+          phone,
+          department,
+          active,
+          created_at,
+          updated_at
+      `,
       [currentUser.id, employeeId],
     );
 
@@ -379,31 +671,60 @@ const deactivateEmployee = async (req, res) => {
       details: `Deactivated ${employee.role} account for ${employee.email}`,
     });
 
-    res.json({
+    return res.json({
       message: "Employee deactivated successfully",
       employee,
     });
   } catch (err) {
     console.error("Deactivate employee error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       error: "Server error",
     });
   }
 };
 
-const getEmployeeById = async (req, res) => {
-  res.status(501).json({
-    message: "Get single employee endpoint planned for Day 14",
-  });
-};
+function normalizeRequiredString(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim();
+}
+
+function normalizeOptionalString(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  return normalized || null;
+}
+
+function normalizeEmail(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().toLowerCase();
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isValidPhoneNumber(value) {
+  return /^[0-9()+\-\s.]{7,25}$/.test(value);
+}
 
 module.exports = {
   getEmployees,
+  getEmployeeById,
   getTimeEntries,
   getAuditLogs,
   createEmployee,
   updateEmployee,
   activateEmployee,
   deactivateEmployee,
-  getEmployeeById,
 };
